@@ -1,7 +1,7 @@
 // Wave director: budgets, difficulty curve, events, elites, hazards and boss AI
-import { ENEMIES, ASCENDED } from './enemies.js?v=202611131442';
-import { Audio2 } from './audio.js?v=202611131442';
-import { angleDiff, clamp, frand } from './util.js?v=202611131442';
+import { ENEMIES, ASCENDED } from './enemies.js?v=202611131814';
+import { Audio2 } from './audio.js?v=202611131814';
+import { angleDiff, clamp, frand } from './util.js?v=202611131814';
 
 export const EVENTS = {
   bloodmoon: { name: 'Blood Moon', icon: '🩸', desc: 'Enemies are faster and stronger — but drop double shards', min: 6 },

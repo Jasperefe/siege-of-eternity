@@ -97,7 +97,7 @@ const RU = {
   "The ad couldn't be shown. Revive with shards or try again.": 'Не удалось показать рекламу. Воскресни за осколки или попробуй снова.',
   '{name} accepted': '{name}: принято', 'Preparing the battlefield…': 'Готовим поле боя…', 'The siege moves on…': 'Осада продолжается…',
   'Castle Courtyard': 'Двор замка', 'Burning Village': 'Горящая деревня', 'The Dark Forest': 'Тёмный лес', "Dragon's Peak": 'Пик Дракона',
-  'Loading the siege…': 'Загружаем осаду…', 'No internet connection. Waiting to reconnect…': 'Нет подключения к интернету. Ждём соединения…', 'Connection is slow. Still loading…': 'Медленное соединение. Загрузка продолжается…', 'Watch an ad to double your shards (+{n})': 'Смотреть рекламу — удвоить осколки (+{n})', 'Soul Shards doubled!': 'Осколки душ удвоены!', 'Failed to load. Please reload the page.': 'Не удалось загрузить. Перезагрузите страницу.',
+  'Loading the siege…': 'Загружаем осаду…', 'Art and sound': 'Графика и звук', 'No internet connection. Waiting to reconnect…': 'Нет подключения к интернету. Ждём соединения…', 'Connection is slow. Still loading…': 'Медленное соединение. Загрузка продолжается…', 'Watch an ad to double your shards (+{n})': 'Смотреть рекламу — удвоить осколки (+{n})', 'Soul Shards doubled!': 'Осколки душ удвоены!', 'Failed to load. Please reload the page.': 'Не удалось загрузить. Перезагрузите страницу.',
   'Block just before a hit lands to parry': 'Блокируй прямо перед ударом, чтобы парировать',
   "Roll through red attacks — they can't be blocked": 'Уклоняйся от красных атак — их нельзя блокировать',
   'Stunned enemies can be executed for health': 'Оглушённых врагов можно казнить ради здоровья',
