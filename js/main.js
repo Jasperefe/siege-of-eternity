@@ -1,9 +1,9 @@
 // Boot sequence: platform SDK -> loading screen -> assets -> menu
-import { Platform } from './platform.js?v=202611131814';
-import { Save } from './save.js?v=202611131814';
-import { Game } from './game.js?v=202611131814';
-import { setLang, t } from './i18n.js?v=202611131814';
-import { Audio2 } from './audio.js?v=202611131814';
+import { Platform } from './platform.js?v=202611132226';
+import { Save } from './save.js?v=202611132226';
+import { Game } from './game.js?v=202611132226';
+import { setLang, t } from './i18n.js?v=202611132226';
+import { Audio2 } from './audio.js?v=202611132226';
 
 async function boot() {
   const ui = { bar: document.getElementById('load-bar-fill'), text: document.getElementById('load-text') };
@@ -37,6 +37,6 @@ async function boot() {
   // iOS Safari: unlock/resume audio on a real tap (CrazyGames requirement)
   const unlock = () => { const c = Audio2.ctx; if (c && c.state !== 'running' && !Audio2.paused && !Audio2.adMuted) c.resume().catch(() => {}); };
   addEventListener('touchend', unlock, { passive: true }); addEventListener('click', unlock);
-  game.backgroundLoad();
+  Audio2.loadSfx('./assets/audio'); // sound effects are small (~0.35 MB); the rest downloads once the player starts
 }
 boot();

@@ -1,6 +1,6 @@
 // Visual effects: particles, slash arcs, rings/telegraphs, projectiles visuals, floating numbers
 import * as THREE from 'three';
-import { frand } from './util.js?v=202611131814';
+import { frand } from './util.js?v=202611132226';
 
 // ---------- GPU particle system (Points) ----------
 const PVERT = `

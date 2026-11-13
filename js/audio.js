@@ -1,5 +1,5 @@
 // Web Audio: sampled SFX + streamed music + a few synthesized sounds (growls, roars, magic, fire)
-import { Platform } from './platform.js?v=202611131814';
+import { Platform } from './platform.js?v=202611132226';
 
 const SFX_GROUPS = {
   swing: ['drawKnife1', 'drawKnife2', 'drawKnife3', 'cloth1', 'cloth2'],
@@ -66,6 +66,10 @@ class AudioSys {
   }
 
   async loadSfx(base) {
+    if (this._sfxP) return this._sfxP;
+    return (this._sfxP = this._loadSfx(base));
+  }
+  async _loadSfx(base) {
     const names = new Set(Object.values(SFX_GROUPS).flat());
     await Promise.all([...names].map(async (n) => {
       try {

@@ -1,9 +1,9 @@
 // Playable heroes (KayKit Adventurers) — combo, parry, dodge, wrath
 import * as THREE from 'three';
-import { Actor } from './actor.js?v=202611131814';
-import { Assets } from './assets.js?v=202611131814';
-import { Audio2 } from './audio.js?v=202611131814';
-import { angleDiff, clamp, dampAngle } from './util.js?v=202611131814';
+import { Actor } from './actor.js?v=202611132226';
+import { Assets } from './assets.js?v=202611132226';
+import { Audio2 } from './audio.js?v=202611132226';
+import { angleDiff, clamp, dampAngle } from './util.js?v=202611132226';
 
 const CH = 'chars/', W = 'weapons/';
 export const HEROES = {
