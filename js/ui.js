@@ -127,7 +127,7 @@ export class UI {
   showHeroes() {
     const cards = HERO_ORDER.map((k) => {
       const h = HEROES[k], owned = this.game.heroUnlocked(k), sel = this.game.selHero === k;
-      return `<button class="hero ${owned ? '' : 'locked'} ${sel ? 'sel' : ''}" data-act="${owned ? 'pickHero' : 'noop'}" data-arg="${k}" ${sel ? 'data-focus' : ''}>
+      return `<button class="hcard ${owned ? '' : 'locked'} ${sel ? 'sel' : ''}" data-act="${owned ? 'pickHero' : 'noop'}" data-arg="${k}" ${sel ? 'data-focus' : ''}>
         <span class="hero-icon">${owned ? h.icon : '🔒'}</span>
         <span class="hero-name">${T(h.name)}</span><span class="hero-cls">${T(h.cls)}${sel ? ` — ${T('Selected')}` : ''}</span>
         <span class="hero-desc">${owned ? T(h.blurb) : T(h.unlock.text)}</span>

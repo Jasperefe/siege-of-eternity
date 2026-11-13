@@ -111,12 +111,12 @@ nav.plates .btn { justify-content: flex-start; width: 100%; }
 .panel-body { display: flex; flex-direction: column; align-items: center; gap: 16px; }
 
 .hero-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; width: 100%; }
-.hero { display: flex; flex-direction: column; gap: 5px; text-align: left; padding: 16px; min-height: 180px; position: relative;
+.hcard { display: flex; flex-direction: column; gap: 5px; text-align: left; padding: 16px; min-height: 180px; position: relative;
   background: linear-gradient(180deg, rgba(44, 48, 56, .95), rgba(24, 26, 31, .97)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); transition: transform .1s; }
-.hero:hover:not(.locked) { transform: translateY(-2px); }
-.hero:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
-.hero.sel { box-shadow: inset 0 0 0 2px var(--brass), inset 0 -40px 60px -30px rgba(212, 165, 72, .25); }
-.hero.locked { opacity: .55; cursor: default; }
+.hcard:hover:not(.locked) { transform: translateY(-2px); }
+.hcard:focus-visible { outline: 2px solid var(--brass-hi); outline-offset: 2px; }
+.hcard.sel { box-shadow: inset 0 0 0 2px var(--brass), inset 0 -40px 60px -30px rgba(212, 165, 72, .25); }
+.hcard.locked { opacity: .55; cursor: default; }
 .hero-icon { font-size: 34px; } .hero-name { font-family: var(--display); font-weight: 700; font-size: 20px; color: var(--brass-hi); }
 .hero-cls { font-size: 13px; color: var(--muted); } .hero-desc { font-size: 14px; line-height: 1.4; flex: 1; }
 .hero-stats { display: flex; gap: 12px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
