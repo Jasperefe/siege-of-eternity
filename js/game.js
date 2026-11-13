@@ -15,7 +15,8 @@ import { UI, UPGRADES, upgradeCost } from './ui.js';
 import { Input } from './input.js';
 import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js';
 
-const DEV = !!window.SOE_DEV; // test cheats (?god, ?wave=N, ?fast, ?overview) only in dev builds
+const DEV = !!window.SOE_DEV;
+export const DEV_EVENT = DEV ? new URLSearchParams(location.search).get('event') : null; // test cheats (?god, ?wave=N, ?fast, ?overview) only in dev builds
 
 export class Game {
   constructor() {
@@ -481,6 +482,14 @@ export class Game {
     if (this.sysPause) return; // YouTube onPause: stop everything (rendering included)
     cancelAnimationFrame(this._raf);
     this._raf = requestAnimationFrame(this._tick);
+    try { this.frame(); } catch (err) {
+      console.error('frame error', err);
+      if (!this._errLogged) { this._errLogged = true; try { window.ytgame?.health?.logError(); } catch (e) {} }
+      try { this.renderer.render(this.scene, this.camera); } catch (e) {}
+    }
+  }
+
+  frame() {
     const now = performance.now();
     let raw = Math.min(this._maxDt || 0.05, (now - (this._last || now)) / 1000); this._last = now;
     this._fc = (this._fc || 0) + 1; if (now - (this._fpsT || 0) > 1000) { this._fps = this._fc; this._fc = 0; this._fpsT = now; }
@@ -512,7 +521,12 @@ export class Game {
         const a0 = this.hero.angleTo(near[0]) + Math.PI; this._slots = new Map();
         near.forEach((e, i) => this._slots.set(e, a0 + Math.PI + i / near.length * Math.PI * 2));
       } else this._slots = null;
-      for (const e of this.enemies) e.update(dt);
+      for (const e of this.enemies) {
+        try { e.update(dt); } catch (err) {
+          console.error('enemy error', e.key, err);
+          if (!e.dead) { e.dead = true; e.alive = false; e.removed = true; }
+        }
+      }
       for (let i = this.enemies.length - 1; i >= 0; i--) {
         const e = this.enemies[i];
         if (e.removed) { this.scene.remove(e.root); this.enemies.splice(i, 1); (this.pool[e.key] ||= []).push(e); }

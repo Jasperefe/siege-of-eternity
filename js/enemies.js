@@ -196,6 +196,7 @@ export class Enemy extends Actor {
     this.slot = Math.random() * Math.PI * 2; this.thinkT = 0; this.bossPhase = 1;
     this.lastHitBy = null; this.flying = d.flying || 0; this.hover = 0; this.t = Math.random() * 10;
     this.summoned = false; this.isBoss = !!d.boss;
+    this.thief = false; this.champion = false; this.isSplit = false; this.fleeT = 0; this.vulnerable = false; this.resting = 0;
     return this;
   }
 
@@ -294,6 +295,16 @@ export class Enemy extends Actor {
   think(dt, speedK) {
     const g = this.game, d = this.def, hero = g.hero;
     const dist = this.dist(hero), ang = this.angleTo(hero);
+    if (this.thief) { // flee: run away from the hero, sliding along the arena edge
+      const away = ang + Math.PI + Math.sin(this.t * 1.3 + this.id) * 0.9;
+      const sp = d.speed * speedK;
+      this.vel.set(Math.sin(away) * sp, 0, Math.cos(away) * sp);
+      if (Math.hypot(this.pos.x, this.pos.z) > g.world.effectiveRadius - 2) { const tang = Math.atan2(this.pos.x, this.pos.z) + Math.PI / 2; this.vel.set(Math.sin(tang) * sp, 0, Math.cos(tang) * sp); }
+      this.facing = dampAngle(this.facing, Math.atan2(this.vel.x, this.vel.z), 10, dt);
+      this.play(d.anims.run, { speed: 1.3 });
+      if (Math.random() < dt * 6) g.fx.sparks({ x: this.pos.x, y: 1, z: this.pos.z }, 2, [1, 0.85, 0.2], 2);
+      return;
+    }
     this.cd -= dt;
     // reactions to the hero's swings
     if (hero.state === 'attack' && hero.stateT < 0.08 && dist < 3.6 && this.tier >= 2) {
@@ -301,7 +312,7 @@ export class Enemy extends Actor {
       if (d.traits?.includes('dodger') && Math.random() < 0.35 + this.tier * 0.05) { this.evade(ang); return; }
     }
     // pick an attack
-    if (this.cd <= 0 && this.guardT <= 0) {
+    if (this.cd <= 0 && this.guardT <= 0 && !this.thief) {
       const opts = d.attacks.filter((a) => dist <= a.range && (!a.kind || a.kind !== 'raise' || g.corpses.length > 0) && (!a.kind || a.kind !== 'heal' || g.woundedAllies(this)));
       if (opts.length) {
         const a = opts[Math.floor(Math.random() * opts.length)];
@@ -321,7 +332,7 @@ export class Enemy extends Actor {
       }
     } else if (this.tier >= 1 && dist < 7 && !this.flying) { // surround the hero instead of lining up
       this.slot += dt * 0.25;
-      const ring = Math.max(1.6, (d.attacks[0].range || 2) * 0.8);
+      const ring = Math.max(1.6, (d.attacks[0]?.range || 2) * 0.8);
       const sa = g.slotAngle(this);
       tx = hero.pos.x + Math.sin(sa) * ring; tz = hero.pos.z + Math.cos(sa) * ring;
       if (dist < ring + 0.5) want = 0.35;
@@ -329,7 +340,7 @@ export class Enemy extends Actor {
     const dx = tx - this.pos.x, dz = tz - this.pos.z, dl = Math.hypot(dx, dz) || 1;
     let mxv = dx / dl + sx, mzv = dz / dl + sz;
     const ml = Math.hypot(mxv, mzv) || 1;
-    const close = !d.ranged && dist < (d.attacks[0].range * 0.85);
+    const close = !d.ranged && dist < ((d.attacks[0]?.range || 2) * 0.85);
     const sp = close ? 0 : d.speed * speedK * want * (this.guardT > 0 ? 0.3 : 1);
     this.vel.x = mxv / ml * sp; this.vel.z = mzv / ml * sp;
     const faceT = dist < 6 || sp < 0.1 ? ang : Math.atan2(this.vel.x, this.vel.z);

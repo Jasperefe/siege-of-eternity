@@ -46,7 +46,9 @@ export class Director {
     }
     // event selection
     const pool = Object.entries(EVENTS).filter(([, e]) => n >= e.min);
-    if (n >= 4 && (n % 4 === 3 || rng() < 0.3) && pool.length) {
+    const forced = window.SOE_DEV ? new URLSearchParams(location.search).get('event') : null;
+    if (forced && EVENTS[forced]) { this.event = forced; run.stats.events++; g.ui.eventBanner(EVENTS[forced]); }
+    else if (n >= 4 && (n % 4 === 3 || rng() < 0.3) && pool.length) {
       const [k, e] = rng.pick(pool); this.event = k; run.stats.events++;
       g.ui.eventBanner(e);
     }
@@ -106,7 +108,7 @@ export class Director {
       if (!e) continue;
       if (q.elite || q.named) e.makeElite(run.rng, q.named);
       if (q.elite || q.named) { e.hp = e.maxHp; g.ui.eliteSpawn(e); }
-      if (q.thief) { e.thief = true; e.name = 'Treasure Goblin'; e.maxHp *= 3; e.hp = e.maxHp; e.speedMul *= 1.4; e.setTint(0x6a5200, 0.6); e.def = { ...e.def, attacks: [] }; e.fleeT = 16; g.ui.eliteSpawn(e); }
+      if (q.thief) { e.thief = true; e.name = 'Treasure Goblin'; e.maxHp *= 3; e.hp = e.maxHp; e.speedMul *= 1.4; e.setTint(0x6a5200, 0.6); e.fleeT = 16; g.ui.eliteSpawn(e); }
       if (q.champion) { e.champion = true; e.makeElite(run.rng, true); e.hp = e.maxHp; g.ui.eliteSpawn(e); }
       break; // at most one per frame
     }
