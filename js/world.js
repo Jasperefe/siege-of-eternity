@@ -1,7 +1,7 @@
 // Arenas ("scenes") built from the Kenney castle/nature kits + Quaternius buildings
 import * as THREE from 'three';
-import { Assets, measure } from './assets.js';
-import { frand, makeRng } from './util.js';
+import { Assets, measure } from './assets.js?v=202611131113';
+import { frand, makeRng } from './util.js?v=202611131113';
 
 export const ARENA_R = 19;
 
