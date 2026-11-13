@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Siege of Eternity</title>
+<meta name="description" content="Hold the castle against endless waves of undead, demons and dragons. A 3D medieval wave-survival action game.">
+<script>window.SOE_PLATFORM = 'local'; window.SOE_DEV = false;</script>
+<link rel="stylesheet" href="./style.css">
+<script type="importmap">{"imports":{"three":"./lib/three.module.min.js","three/addons/":"./lib/addons/"}}</script>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="vignette"></div>
+  <div id="hurt"></div>
+  <div id="numbers"></div>
+  <div id="plates"></div>
+
+  <div id="hud" class="hidden">
+    <div id="hud-left">
+      <div id="hp"><div id="hp-fill"></div><span id="hp-text"></span></div>
+      <div id="wrath"><div id="wrath-fill"></div><span>WRATH</span></div>
+      <div id="dodges"></div>
+    </div>
+    <div id="hud-mid"><div id="wave-label">WAVE <b id="wave-n">1</b></div><div id="wave-sub"></div></div>
+    <div id="hud-right"><div id="score">0</div><button id="pause-btn" aria-label="Pause">❚❚</button></div>
+    <div id="streak"></div>
+  </div>
+  <div id="bossbar" class="hidden"><div id="boss-name"></div><div id="boss-track"><div id="boss-fill"></div></div><div id="boss-title"></div></div>
+
+  <div id="touch" class="hidden">
+    <div id="stick-zone"></div>
+    <div id="stick-base"><div id="stick-knob"></div></div>
+    <div id="buttons">
+      <button id="btn-attack" class="tb big">⚔️</button>
+      <button id="btn-block" class="tb">🛡️</button>
+      <button id="btn-dodge" class="tb">💨</button>
+      <button id="btn-wrath" class="tb">🔥</button>
+    </div>
+  </div>
+
+  <div id="announce"></div>
+  <div id="toasts"></div>
+  <div id="screens"></div>
+  <div id="ad-overlay" class="hidden"></div>
+
+  <div id="loading">
+    <div class="logo"><span class="l1">SIEGE</span><span class="l2">of</span><span class="l1">ETERNITY</span></div>
+    <div id="load-bar"><div id="load-bar-fill"></div></div>
+    <div id="load-text">Sharpening swords…</div>
+  </div>
+</div>
+<script type="module" src="./js/main.js"></script>
+</body>
+</html>
