@@ -22,7 +22,7 @@ export function bossForWave(n) {
   if (n % 10 !== 0) return null;
   return ['golden_knight', 'drake', 'shadow_dragon', 'behemoth'][((n / 10) - 1) % 4];
 }
-export function tierForWave(n) { return n < 6 ? 0 : n < 11 ? 1 : n < 15 ? 2 : n < 25 ? 3 : 4; }
+export function tierForWave(n) { return n < 8 ? 0 : n < 14 ? 1 : n < 20 ? 2 : n < 30 ? 3 : 4; }
 
 export class Director {
   constructor(game) { this.game = game; this.active = false; }
@@ -39,8 +39,8 @@ export class Director {
       this.boss = bossKey;
       // adds come with the boss
       const adds = { golden_knight: ['skel_minion', 'soldier'], drake: ['bat', 'hound'], shadow_dragon: ['ghost_skull', 'demon'], behemoth: ['orc_skull', 'skel_warrior'] }[bossKey];
-      for (let i = 0; i < 2 + Math.floor(n / 10); i++) this.queue.push({ key: rng.pick(adds), delay: 12 + i * 4 });
-      this.maxAlive = 8;
+      for (let i = 0; i < 1 + Math.floor(n / 20); i++) this.queue.push({ key: rng.pick(adds), delay: 20 + i * 8 });
+      this.maxAlive = 4;
       this.bossPending = { key: bossKey, level, at: 0.9 };
       return;
     }
@@ -53,7 +53,7 @@ export class Director {
       g.ui.eventBanner(e);
     }
     // budget: grows faster than linear — the siege gets brutal
-    let budget = (6 + n * 2.6 + Math.pow(n, 1.45) * 0.55) * run.modeMul;
+    let budget = (5 + n * 2.1 + Math.pow(n, 1.4) * 0.45) * run.modeMul * (run.mode === 'casual' ? 0.75 : 1);
     if (this.event === 'bloodmoon') { level.dmg *= 1.25; level.speed *= 1.15; run.shardsWave = 2; } else run.shardsWave = 1;
     if (this.event === 'champion') { this.queue.push({ key: 'champion', delay: 0, champion: true }); budget *= 0.4; }
     if (this.event === 'necro') this.queue.push({ key: 'skel_mage', delay: 4, elite: true });
@@ -61,7 +61,7 @@ export class Director {
     if (this.event === 'swarm') for (let i = 0; i < 8 + Math.floor(n / 4); i++) this.queue.push({ key: 'bat', delay: 2 + i * 0.3 });
     if (this.event === 'goldrush') this.queue.push({ key: 'goblin', delay: 1.5, thief: true });
     const avail = Object.entries(ENEMIES).filter(([, d]) => d.wave <= n);
-    let eliteChance = clamp((n - 4) * 0.03, 0, 0.4) + run.eliteBonus;
+    let eliteChance = clamp((n - 6) * 0.022, 0, 0.32) + run.eliteBonus;
     let t = 0.5;
     while (budget > 0) {
       const [k, d] = rng.weighted(avail, ([, d]) => d.w * (n - d.wave < 4 ? 1.8 : 1) * (d.cost > budget + 1 ? 0.05 : 1));
@@ -74,7 +74,7 @@ export class Director {
     if (n % 5 === 0) this.queue.push({ key: rng.weighted(avail.filter(([, d]) => d.cost >= 2), ([, d]) => d.w)[0], delay: t * 0.6, elite: true, named: true });
     this.queue.sort((a, b) => a.delay - b.delay);
     this.total = this.queue.length;
-    this.maxAlive = Math.round(Math.min(9 + n * 0.75, g.quality === 'low' ? 18 : 26));
+    this.maxAlive = Math.round(Math.min(7 + n * 0.6, g.quality === 'low' ? 15 : 22));
   }
 
   spawnBoss(key, level) {
@@ -84,7 +84,8 @@ export class Director {
     if (!e) return;
     const loop = Math.floor((this.n - 1) / 40);
     // bosses scale gentler than regular enemies so fights stay ~1 minute
-    e.maxHp = e.def.hp * (1 + (level.hp - 1) * 0.45) * (1 + loop * 0.7) * g.run.modeMul; e.hp = e.maxHp; e.dmgMul = (1 + (level.dmg - 1) * 0.7) * (1 + loop * 0.25);
+    e.maxHp = e.def.hp * 0.7 * (1 + (level.hp - 1) * 0.3) * (1 + loop * 0.7) * g.run.modeMul * (g.run.mode === 'casual' ? 0.7 : 1); e.hp = e.maxHp;
+    e.dmgMul = 0.8 * (1 + (level.dmg - 1) * 0.6) * (1 + loop * 0.25) * (g.run.mode === 'casual' ? 0.7 : 1);
     this.bossEnemy = e;
     g.ui.bossIntro(e); g.ui.bossHp(e);
     Audio2.sting('boss'); Audio2.roar(0.6);
@@ -149,11 +150,12 @@ export class Director {
       if (e.bossPhase === 1 && hpK < 0.5) {
         e.bossPhase = 2; e.atkSpeed = 1.3; e.speedMul *= 1.2; e.setTint(0xff5a10, 0.5);
         g.ui.announce('THE GOLDEN KNIGHT IS ENRAGED', 'boss'); Audio2.roar(0.5); g.shake(0.6);
-        g.combat.summon(e, 'skel_minion', 3); g.combat.summon(e, 'skel_warrior', 1);
+        g.combat.summon(e, 'skel_minion', 2);
+        g.hero.heal(g.hero.maxHp * 0.2); g.ui.toast('💚 A second wind fills you (+20% health)');
       }
       if (e.bossPhase === 2 && Math.random() < dt * 4) g.fx.fire({ x: e.pos.x, y: 1.5, z: e.pos.z }, 1, 0.6);
       // he blocks a lot: you must parry or flank him
-      if (e.state === 'chase' && e.guardT <= 0 && e.dist(hero) < 4 && hero.state === 'attack' && hero.stateT < 0.1 && Math.random() < 0.55) e.guard(1.2);
+      if (e.state === 'chase' && e.guardT <= 0 && e.dist(hero) < 4 && hero.state === 'attack' && hero.stateT < 0.1 && Math.random() < 0.25) e.guard(0.9);
     } else if (e.def.boss === 'drake') {
       // lands to rest after dives (vulnerable)
       if (e.state === 'chase' && e._lastAtk === 'dive' && !e.resting) { e.resting = 2.8; e._lastAtk = null; }

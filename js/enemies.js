@@ -104,11 +104,11 @@ export const BOSSES = {
     hp: 2400, dmg: 24, speed: 5.4, mass: 0.92, mat: 'metal', boss: 'golden', color: 0xffd36b, emissive: 0x3a2400,
     anims: { ...KANIM, idle: 'Melee_2H_Idle' }, weapons: [[W + 'sword_2handed_color.glb', KR]], traits: ['blocker'],
     attacks: [
-      { anim: 'Melee_2H_Attack_Chop', dur: 0.95, hit: 0.55, range: 3.4, arc: 110, dmg: 1, cd: 0.7 },
-      { anim: 'Melee_2H_Attack_Slice', dur: 0.85, hit: 0.5, range: 3.6, arc: 170, dmg: 1, cd: 0.7 },
-      { anim: 'Melee_2H_Attack_Stab', dur: 1.0, hit: 0.6, range: 4.2, arc: 60, dmg: 1.3, cd: 1, lunge: 7 },
-      { anim: 'Melee_2H_Attack_Spin', dur: 1.8, hit: 0.32, range: 4.0, kind: 'spin', aoe: 4.0, dmg: 0.8, multi: 3, cd: 2.5, telegraph: true, unblockable: true },
-      { anim: 'Melee_1H_Attack_Jump_Chop', dur: 1.5, hit: 0.7, range: 14, kind: 'leap', aoe: 3.4, dmg: 1.5, cd: 3.5, telegraph: true, unblockable: true },
+      { anim: 'Melee_2H_Attack_Chop', dur: 1.15, hit: 0.6, range: 3.4, arc: 110, dmg: 1, cd: 1.6 },
+      { anim: 'Melee_2H_Attack_Slice', dur: 1.05, hit: 0.55, range: 3.6, arc: 170, dmg: 1, cd: 1.6 },
+      { anim: 'Melee_2H_Attack_Stab', dur: 1.2, hit: 0.65, range: 4.2, arc: 60, dmg: 1.2, cd: 1.8, lunge: 6 },
+      { anim: 'Melee_2H_Attack_Spin', dur: 2.0, hit: 0.4, range: 4.0, kind: 'spin', aoe: 3.6, dmg: 0.6, multi: 3, cd: 3.5, telegraph: true, unblockable: true },
+      { anim: 'Melee_1H_Attack_Jump_Chop', dur: 1.7, hit: 0.72, range: 14, kind: 'leap', aoe: 3.0, dmg: 1.2, cd: 4.5, telegraph: true, unblockable: true },
     ] },
   drake: { name: 'Vyrmax the Ember Drake', title: 'Terror of the Skies', model: FB + 'Dragon.fbx', h: 3.8, r: 1.3, hp: 3800, dmg: 22, speed: 6.5, mass: 0.95, mat: 'flesh', yaw: 0,
     boss: 'drake', flying: 3.4, darkTo: 0x8a1e10, emissive: 0x3a0800,
@@ -463,7 +463,7 @@ export class Enemy extends Actor {
     }
     if (k >= 1) {
       this.state = 'chase'; this.flyOverride = null; this.leapFrom = null; this.leapTo = null; this.tele = null;
-      this.cd = a.cd * frand(0.8, 1.25) / (1 + this.tier * 0.08) / this.atkSpeed;
+      this.cd = a.cd * frand(0.9, 1.35) * (this.tier < 2 ? 1.25 : 1) / (1 + this.tier * 0.06) / this.atkSpeed;
       this.play(this.def.anims.run, { fade: 0.15 });
     }
   }

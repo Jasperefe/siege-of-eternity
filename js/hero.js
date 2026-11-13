@@ -293,7 +293,7 @@ export class Hero extends Actor {
       this.state = 'hit'; this.stateT = 0; this.play(Math.random() < 0.5 ? 'Hit_A' : 'Hit_B', { once: true, restart: true, fade: 0.05 });
     }
     if (src && knock) { const a = Math.atan2(this.pos.x - src.x, this.pos.z - src.z); this.knock.set(Math.sin(a) * knock, 0, Math.cos(a) * knock); }
-    this.iframes = Math.max(this.iframes, 0.25);
+    this.iframes = Math.max(this.iframes, 0.45);
     return 'hit';
   }
 

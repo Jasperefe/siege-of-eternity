@@ -69,7 +69,7 @@ export class UI {
           <button class="btn" data-act="shrine">💎 Shrine <small>${s.shards}</small></button>
         </div>
         <div class="row2">
-          <button class="btn" data-act="modes">🎚️ Mode: ${this.game.mode === 'normal' ? 'Normal' : this.game.mode === 'nightmare' ? 'Nightmare' : 'Eternity'}</button>
+          <button class="btn" data-act="modes">🎚️ Mode: ${{ casual: 'Casual', normal: 'Normal', nightmare: 'Nightmare', eternity: 'Eternity' }[this.game.mode]}</button>
           <button class="btn" data-act="settings">⚙️ Settings</button>
         </div>
         <button class="btn ghost" data-act="howto">❔ How to play</button>
@@ -107,6 +107,7 @@ export class UI {
     const s = this.game.save, m = this.game.mode;
     const row = (k, name, desc, ok) => `<button class="mode-card ${m === k ? 'sel' : ''} ${ok ? '' : 'locked'}" data-act="${ok ? 'pickMode' : 'noop'}" data-arg="${k}"><b>${ok ? '' : '🔒 '}${name}</b><div>${ok ? desc : 'Defeat the Shadow Dragon to unlock'}</div></button>`;
     this.show(`<h2>Difficulty</h2><div class="mode-list">
+      ${row('casual', 'Casual', 'Weaker enemies and easier bosses. Enjoy the story of the siege.', true)}
       ${row('normal', 'Normal', 'The full siege. Starts gentle, ends brutal.', true)}
       ${row('nightmare', 'Nightmare', 'Enemies start at wave-10 strength. +50% Soul Shards.', s.modes.nightmare)}
       ${row('eternity', 'Eternity', 'One life. No healing. +100% Soul Shards. Leaderboard glory.', s.modes.eternity)}

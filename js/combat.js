@@ -192,7 +192,7 @@ export class Combat {
     const g = this.game, hero = g.hero, m = g.run.mods;
     g.run.stats.parries++;
     hero.riposte = 1.4; hero.addWrath(18);
-    if (!e.isBoss || Math.random() < 0.6) e.staggered(e.isBoss ? 1.4 : 1.8);
+    e.staggered(e.isBoss ? 1.6 : 1.8);
     hero.play(hero.def.riposte, { once: true, restart: true, dur: 0.35, fade: 0.04 });
     setTimeout(() => { if (hero.state === 'block') hero.play(hero.def.block, { fade: 0.12 }); }, 380);
     const p = { x: (hero.pos.x + e.pos.x) / 2, y: 1.4, z: (hero.pos.z + e.pos.z) / 2 };
@@ -283,8 +283,7 @@ export class Combat {
       } else {
         mesh = new THREE.Mesh(this.sphereGeo, new THREE.MeshBasicMaterial({ color: def.emissive }));
         mesh.scale.setScalar(def.sphere);
-        const glow = new THREE.PointLight(def.emissive, 0, 5, 2);
-        if (o.kind === 'fireball' || o.kind === 'meteor') { mesh.add(glow); mesh.userData.glow = glow; }
+        // no per-projectile lights: adding a light forces every shader to recompile (1-3s freeze on phones)
       }
       g.scene.add(mesh);
     }

@@ -26,7 +26,7 @@ export class Game {
     this.time = 0;
     this.enemies = []; this.pool = {}; this.corpses = [];
     this.hitstopT = 0; this.slowT = 0; this.slowScale = 1; this.shakeAmt = 0;
-    this.selHero = 'knight'; this.mode = 'normal';
+    this.selHero = 'knight'; this.mode = this.save.lastMode || 'normal';
     this.dailyKey = todaySeed().key;
     this.input = new Input();
     const q = this.save.settings.quality;
@@ -118,11 +118,28 @@ export class Game {
     for (const k of Object.keys(ALL_DEFS)) rest.push(...defAssets(k));
     for (const k of Object.keys(HEROES)) rest.push(...heroAssets(k));
     for (const k of ['village', 'forest', 'peak']) rest.push(...SCENE_ASSETS[k]);
+    const idle = async () => { while (this.state === 'play' || this.state === 'cleared' || this.state === 'dying') await new Promise((r) => setTimeout(r, 400)); };
     for (const p of [...new Set(rest)]) {
       if (Assets.has(p)) continue;
+      await idle(); // parsing big models mid-fight causes hitches: only load in menus / between waves
       try { await (p.endsWith('.hdr') ? this.world.envFor(p) : Assets.any(p)); } catch (e) { console.warn('bg load', p, e); }
     }
+    for (const k of Object.keys(ALL_DEFS)) { await idle(); this.warmEnemy(k); await new Promise((r) => setTimeout(r, 30)); }
     this.bgLoaded = true;
+  }
+
+  // Build one enemy of this type ahead of time and compile its shaders, so its first appearance doesn't stutter
+  warmEnemy(key) {
+    this._warm ||= new Set();
+    if (this._warm.has(key) || !defAssets(key).every((p) => Assets.has(p))) return;
+    this._warm.add(key);
+    try {
+      const e = new Enemy(this, key);
+      e.root.position.set(0, -50, 0); this.scene.add(e.root);
+      this.renderer.compile(this.scene, this.camera);
+      this.scene.remove(e.root);
+      (this.pool[key] ||= []).push(e);
+    } catch (err) { console.warn('warm', key, err); }
   }
   async ensure(paths) {
     await Promise.all([...new Set(paths)].map((p) => (Assets.has(p) ? null : p.endsWith('.hdr') ? this.world.envFor(p) : Assets.any(p))));
@@ -151,7 +168,7 @@ export class Game {
       this.selHero = k; this.save.lastHero = k; Save.write();
       await this.ensure(heroAssets(k)); this.spawnHero(k); ui.showHeroes();
     });
-    ui.on('pickMode', (k) => { this.mode = k; ui.showMenu(); });
+    ui.on('pickMode', (k) => { this.mode = k; this.save.lastMode = k; Save.write(); ui.showMenu(); });
     ui.on('buyUp', (k) => {
       const lvl = this.save.upg[k] || 0, cost = upgradeCost(k, lvl);
       if (this.save.shards < cost || lvl >= UPGRADES[k].max) return;
@@ -192,8 +209,8 @@ export class Game {
     const m = this.run?.mode === 'nightmare' ? 9 : 0;
     const k = n - 1 + m;
     return {
-      hp: (1 + 0.11 * k + 0.0035 * k * k) * (this.run?.enemyHp || 1),
-      dmg: (1 + 0.06 * k) * (this.run?.enemyDmg || 1),
+      hp: (1 + 0.08 * k + 0.0025 * k * k) * (this.run?.enemyHp || 1) * (this.run?.mode === 'casual' ? 0.7 : 1),
+      dmg: (1 + 0.045 * k) * (this.run?.enemyDmg || 1) * (this.run?.mode === 'casual' ? 0.6 : 0.85),
       speed: Math.min(1.35, 1 + 0.01 * k),
       tier: tierForWave(n + m),
     };
@@ -207,7 +224,7 @@ export class Game {
     this.run = {
       daily, mode, rng: makeRng(seed), wave: 0, score: 0, mods: {}, cards: {}, synergies: new Set(),
       stats: { kills: 0, parries: 0, dodges: 0, dealt: 0, taken: 0, executions: 0, events: 0, bosses: 0 },
-      modeMul: mode === 'nightmare' ? 1.25 : 1, enemyHp: 1, enemyDmg: 1, shardMul: mode === 'nightmare' ? 1.5 : mode === 'eternity' ? 2 : 1,
+      modeMul: mode === 'nightmare' ? 1.25 : 1, enemyHp: 1, enemyDmg: 1, shardMul: mode === 'nightmare' ? 1.5 : mode === 'eternity' ? 2 : mode === 'casual' ? 0.75 : 1,
       eliteBonus: 0, shardsBonus: 0, revived: false, rerolls: this.save.upg.fortune || 0, adRerollUsed: false,
       heroDef: HEROES[this.selHero], adapt: { parry: 0, dodge: 0 }, shardsWave: 1,
     };
@@ -235,6 +252,7 @@ export class Game {
     const keys = new Set(this.director.queue.map((q) => q.key)); if (this.director.boss) keys.add(this.director.boss);
     for (const q of ['bat', 'skel_minion', 'skel_warrior', 'ghost_skull', 'slime']) keys.add(q);
     await this.ensure([...keys].flatMap(defAssets));
+    for (const k of keys) this.warmEnemy(k);
     this.ui.hideScreens(); this.ui.setHud(true);
     this.ui.waveBanner(n, this.director.boss ? 'BOSS WAVE' : SCENES[this.world.key].title);
     this.state = 'play';
@@ -250,7 +268,7 @@ export class Game {
     this.ui.announce('WAVE CLEARED', 'gold', 1.6);
     Audio2.sting('good');
     this.slowmo(0.8, 0.4);
-    this.hero.heal(this.hero.maxHp * 0.15);
+    this.hero.heal(this.hero.maxHp * 0.35);
     setTimeout(() => {
       if (this.state !== 'cleared') return;
       Platform.gameplayStop();
