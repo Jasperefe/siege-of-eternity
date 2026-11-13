@@ -1,20 +1,20 @@
 // Game orchestration: loop, camera, run flow, waves, platform hooks
 import * as THREE from 'three';
-import { Assets } from './assets.js?v=202611131113';
-import { Audio2 } from './audio.js?v=202611131113';
-import { Platform } from './platform.js?v=202611131113';
-import { Save } from './save.js?v=202611131113';
-import { FX } from './fx.js?v=202611131113';
-import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611131113';
-import { Hero, HEROES, heroAssets } from './hero.js?v=202611131113';
-import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611131113';
-import { Combat } from './combat.js?v=202611131113';
-import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611131113';
-import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611131113';
-import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611131113';
-import { Input } from './input.js?v=202611131113';
-import { t } from './i18n.js?v=202611131113';
-import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611131113';
+import { Assets } from './assets.js?v=202611131442';
+import { Audio2 } from './audio.js?v=202611131442';
+import { Platform } from './platform.js?v=202611131442';
+import { Save } from './save.js?v=202611131442';
+import { FX } from './fx.js?v=202611131442';
+import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611131442';
+import { Hero, HEROES, heroAssets } from './hero.js?v=202611131442';
+import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611131442';
+import { Combat } from './combat.js?v=202611131442';
+import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611131442';
+import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611131442';
+import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611131442';
+import { Input } from './input.js?v=202611131442';
+import { t } from './i18n.js?v=202611131442';
+import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611131442';
 
 const DEV = !!window.SOE_DEV;
 export const DEV_EVENT = DEV ? new URLSearchParams(location.search).get('event') : null; // test cheats (?god, ?wave=N, ?fast, ?overview) only in dev builds
@@ -145,6 +145,17 @@ export class Game {
     this.bgLoaded = true;
   }
 
+  // Load something the next wave needs; if the connection drops, keep retrying and tell the player
+  async loadOrWait(fn) {
+    for (let tries = 0; ; tries++) {
+      try { return await fn(); } catch (e) {
+        console.warn('load failed, retrying', e);
+        this.ui.busy(true, navigator.onLine === false ? 'No internet connection. Waiting to reconnect…' : 'Connection is slow. Still loading…');
+        await new Promise((r) => setTimeout(r, Math.min(8000, 1500 + tries * 1000)));
+      }
+    }
+  }
+
   // Late-game content (arenas 5-8, the Ascended) only downloads once a run gets far enough to need it
   async lateLoad() {
     if (this._lateLoading) return; this._lateLoading = true;
@@ -152,6 +163,7 @@ export class Game {
     for (const k of ['frozen', 'temple', 'forge', 'void']) list.push(...SCENE_ASSETS[k]);
     for (const k of Object.keys(ALL_DEFS)) if (ALL_DEFS[k].ascended) list.push(...defAssets(k));
     const idle = async () => { while (this.state === 'play' || this.state === 'dying') await new Promise((r) => setTimeout(r, 400)); };
+    for (const p of [...new Set(list)]) { if (!Assets.has(p)) try { await fetch('./assets/' + p); } catch (e) {} } // warm the HTTP cache
     for (const p of [...new Set(list)]) {
       if (Assets.has(p)) continue;
       await idle();
@@ -330,7 +342,7 @@ export class Game {
     const need = [...keys].flatMap(defAssets);
     if (!need.every((p) => Assets.has(p)) || !Assets.kkReady()) {
       this.ui.busy(true);
-      await Promise.all([this.ensure(need), Assets.kkAnims()]);
+      await this.loadOrWait(() => Promise.all([this.ensure(need), Assets.kkAnims()]));
       this.ui.busy(false);
     }
     for (const k of keys) this.warmEnemy(k);
@@ -349,7 +361,7 @@ export class Game {
 
   onWaveCleared() {
     const run = this.run;
-    if (run.wave >= 33) this.lateLoad();
+    if (run.wave >= 30) this.lateLoad();
     this.state = 'cleared';
     run.score += 100 * run.wave;
     this.ui.announce('WAVE CLEARED', 'gold', 1.6);
@@ -406,7 +418,8 @@ export class Game {
     if (scene !== this.world.key) {
       this.ui.travel(SCENES[scene].title, next);
       this.clearEnemies(); this.combat.clear();
-      await this.world.build(scene);
+      await this.loadOrWait(() => this.world.build(scene));
+      this.ui.busy(false);
       this.hero.pos.set(0, 0, 2); this.hero.vel.set(0, 0, 0);
       await new Promise((r) => setTimeout(r, 900));
     }

@@ -1,10 +1,10 @@
 // DOM user interface: banner title screen, forged-iron buttons, HUD, cards, announcements, nameplates
 import * as THREE from 'three';
-import { HEROES, HERO_ORDER } from './hero.js?v=202611131113';
-import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611131113';
-import { Audio2 } from './audio.js?v=202611131113';
-import { Platform } from './platform.js?v=202611131113';
-import { t } from './i18n.js?v=202611131113';
+import { HEROES, HERO_ORDER } from './hero.js?v=202611131442';
+import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611131442';
+import { Audio2 } from './audio.js?v=202611131442';
+import { Platform } from './platform.js?v=202611131442';
+import { t } from './i18n.js?v=202611131442';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -79,7 +79,7 @@ export class UI {
   // ------------- loading / busy / ads -------------
   loading(p, text) { $('#load-bar-fill').style.width = Math.round(p * 100) + '%'; if (text) $('#load-text').textContent = text; }
   hideLoading() { const l = $('#loading'); l.classList.add('gone'); setTimeout(() => l.remove(), 700); }
-  busy(on) { $('#busy').classList.toggle('hidden', !on); }
+  busy(on, msg) { $('#busy').classList.toggle('hidden', !on); $('#busy-text').textContent = t(msg || 'Preparing the battlefield…'); }
   // From the moment an ad is requested: block every button (CrazyGames rule)
   adWait(on) { this._locked = on; $('#ad-wait').classList.toggle('hidden', !on); }
   adOverlay(on) { $('#ad-overlay').classList.toggle('hidden', !on); }

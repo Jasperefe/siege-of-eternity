@@ -28,7 +28,7 @@ export const Assets = {
       entry.clips.forEach(stripRootMotion);
       cache.set(path, entry); pending.delete(path); this.stats.loaded++;
       return entry;
-    });
+    }).catch((e) => { pending.delete(path); throw e; });
     pending.set(path, p);
     return p;
   },
@@ -46,7 +46,7 @@ export const Assets = {
       entry.clips.forEach(stripRootMotion);
       cache.set(path, entry); pending.delete(path); this.stats.loaded++;
       return entry;
-    });
+    }).catch((e) => { pending.delete(path); throw e; });
     pending.set(path, p);
     return p;
   },
