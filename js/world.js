@@ -26,8 +26,28 @@ export const SCENES = {
     fog: [0x1e0a08, 26, 85], sun: { color: 0xffa070, int: 2.0, pos: [-25, 35, -25] }, hemi: [0x9a6a60, 0x1a0805, 0.7],
     ground: 'lava', exposure: 1.15, music: 'boss', lantern: 1.4,
   },
+  frozen: {
+    title: 'Frozen Citadel', sky: 'sky/day.hdr', skyInt: 0.55, envInt: 0.8, bgBlur: 0.08,
+    fog: [0xa8bcd8, 28, 90], sun: { color: 0xdfeaff, int: 2.2, pos: [-25, 40, 20] }, hemi: [0xd8e8ff, 0x5a6a80, 0.7],
+    ground: 'snow', exposure: 0.95, music: 'battle',
+  },
+  temple: {
+    title: 'Sunken Temple', sky: 'sky/night.hdr', skyInt: 0.5, envInt: 0.55, bgBlur: 0.06,
+    fog: [0x18222a, 26, 80], sun: { color: 0xb0c4e0, int: 2.0, pos: [15, 40, 25] }, hemi: [0x9aaac0, 0x3a2c20, 1.1],
+    ground: 'tiles', exposure: 1.35, music: 'battle', lantern: 2.4,
+  },
+  forge: {
+    title: 'Volcano Forge', sky: 'sky/night.hdr', skyInt: 0.6, envInt: 0.5, bgBlur: 0.05,
+    fog: [0x3a0c06, 24, 80], sun: { color: 0xff9a60, int: 2.8, pos: [-20, 35, -20] }, hemi: [0xd07a50, 0x300800, 1.0],
+    ground: 'magma', exposure: 1.25, music: 'boss', lantern: 1.2,
+  },
+  void: {
+    title: 'The Void', sky: 'sky/night.hdr', skyInt: 0.35, envInt: 0.45, bgBlur: 0.1,
+    fog: [0x1c0a30, 24, 75], sun: { color: 0xd8b8ff, int: 2.4, pos: [20, 40, -15] }, hemi: [0xa080e0, 0x1a0a2a, 1.1],
+    ground: 'void', exposure: 1.4, music: 'boss', lantern: 2.0,
+  },
 };
-export const SCENE_ORDER = ['courtyard', 'village', 'forest', 'peak'];
+export const SCENE_ORDER = ['courtyard', 'village', 'forest', 'peak', 'frozen', 'temple', 'forge', 'void'];
 
 // Assets each scene needs (so they can be preloaded per scene)
 export const SCENE_ASSETS = {
@@ -42,6 +62,13 @@ export const SCENE_ASSETS = {
     'env/n_mushroom_tanGroup.glb', 'env/n_stump_old.glb', 'env/n_log_large.glb', 'env/n_plant_bushLarge.glb', 'env/n_grass_large.glb', 'env/n_tent_detailedOpen.glb', 'sky/night.hdr'],
   peak: ['env/n_cliff_large_rock.glb', 'env/n_cliff_block_rock.glb', 'env/n_rock_tallE.glb', 'env/n_rock_largeD.glb', 'env/c_tower-hexagon-base.glb',
     'env/c_tower-hexagon-mid.glb', 'env/c_siege-trebuchet-demolished.glb', 'env/c_rocks-large.glb', 'sky/night.hdr'],
+  frozen: ['env/c_wall.glb', 'env/c_gate.glb', 'env/c_tower-square-base.glb', 'env/c_tower-square-mid.glb', 'env/c_tower-square-top-roof.glb',
+    'env/n_cliff_large_rock.glb', 'env/n_rock_tallE.glb', 'env/n_tree_pineTallA_detailed.glb', 'env/n_tree_pineTallB_detailed.glb', 'env/c_tower-hexagon-base.glb', 'env/n_rock_largeD.glb', 'sky/day.hdr'],
+  temple: ['env/d_wall.glb', 'env/d_wall_arched.glb', 'env/d_wall_broken.glb', 'env/d_wall_doorway.glb', 'env/d_pillar.glb', 'env/d_pillar_decorated.glb', 'env/d_column.glb',
+    'env/d_banner_patternA_red.glb', 'env/d_torch_mounted.glb', 'env/d_rubble_large.glb', 'env/d_rubble_half.glb', 'env/d_barrel_large.glb', 'env/d_box_stacked.glb',
+    'env/d_chest_gold.glb', 'env/d_coin_stack_large.glb', 'env/d_sword_shield_broken.glb', 'env/d_candle_triple.glb', 'sky/night.hdr'],
+  forge: ['env/n_cliff_large_rock.glb', 'env/n_cliff_block_rock.glb', 'env/n_rock_tallE.glb', 'env/d_column.glb', 'env/d_barrier_column.glb', 'env/d_rubble_large.glb', 'env/c_rocks-large.glb', 'sky/night.hdr'],
+  void: ['env/n_rock_tallE.glb', 'env/n_cliff_block_rock.glb', 'env/n_rock_largeD.glb', 'env/d_pillar_decorated.glb', 'env/d_column.glb', 'env/d_rubble_large.glb', 'sky/night.hdr'],
 };
 
 // ---------- procedural ground textures ----------
@@ -90,11 +117,59 @@ function groundTexture(kind) {
       });
     }
   }
+  else if (kind === 'snow') {
+    g.fillStyle = '#d9e2ec'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 500; i++) { const x = r() * S, y = r() * S, rad = 8 + r() * 46; g.fillStyle = `hsla(${205 + r() * 20},${20 + r() * 20}%,${78 + r() * 16}%,0.35)`; wrap((dx, dy) => { g.beginPath(); g.arc(x + dx, y + dy, rad, 0, 7); g.fill(); }); }
+    for (let i = 0; i < 70; i++) { const x = r() * S, y = r() * S; g.fillStyle = `rgba(150,180,220,${0.15 + r() * 0.2})`; wrap((dx, dy) => { g.beginPath(); g.ellipse(x + dx, y + dy, 10 + r() * 30, 4 + r() * 10, r() * 3, 0, 7); g.fill(); }); }
+    for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(255,255,255,${r() * 0.5})`; g.fillRect(r() * S, r() * S, 1.5, 1.5); }
+  } else if (kind === 'tiles') {
+    g.fillStyle = '#2a2724'; g.fillRect(0, 0, S, S);
+    const n = 8, w = S / n;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+      const l = 26 + r() * 12;
+      g.fillStyle = `hsl(${30 + r() * 10},${6 + r() * 6}%,${l}%)`; g.fillRect(x * w + 3, y * w + 3, w - 6, w - 6);
+      if (r() < 0.25) { g.strokeStyle = 'rgba(0,0,0,0.45)'; g.lineWidth = 2; g.beginPath(); g.moveTo(x * w + r() * w, y * w + 4); g.lineTo(x * w + r() * w, y * w + w - 4); g.stroke(); }
+      if (r() < 0.2) { g.fillStyle = `rgba(60,90,50,${0.2 + r() * 0.3})`; g.beginPath(); g.arc(x * w + r() * w, y * w + r() * w, 6 + r() * 14, 0, 7); g.fill(); }
+    }
+    for (let i = 0; i < 2500; i++) { g.fillStyle = `rgba(0,0,0,${r() * 0.15})`; g.fillRect(r() * S, r() * S, 2, 2); }
+  } else if (kind === 'magma' || kind === 'void') {
+    const magma = kind === 'magma';
+    g.fillStyle = magma ? '#1c1210' : '#140c1e'; g.fillRect(0, 0, S, S);
+    for (let i = 0; i < 300; i++) { const x = r() * S, y = r() * S, rad = 10 + r() * 50; g.fillStyle = magma ? `hsla(12,${10 + r() * 10}%,${6 + r() * 10}%,0.4)` : `hsla(${265 + r() * 30},${20 + r() * 20}%,${6 + r() * 10}%,0.4)`; wrap((dx, dy) => { g.beginPath(); g.arc(x + dx, y + dy, rad, 0, 7); g.fill(); }); }
+    const cols = magma ? ['#120402', '#ff7a20', '#ff8a30'] : ['#05020a', '#b070ff', '#a060ff'];
+    for (let i = 0; i < (magma ? 18 : 10); i++) {
+      let x = r() * S, y = r() * S, a = r() * 6.28; const pts = [[x, y]];
+      for (let k = 0; k < (magma ? 10 : 7); k++) { a += magma ? r() * 1.4 - 0.7 : (r() < 0.5 ? 1.57 : -1.57) * (r() < 0.6 ? 0 : 1); x += Math.cos(a) * 20; y += Math.sin(a) * 20; pts.push([x, y]); }
+      for (const [ctx, col, w] of [[g, cols[0], 6], [g, cols[1], 2], [ge, cols[2], 3]]) wrap((dx, dy) => {
+        ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); pts.forEach(([px, py], j) => (j ? ctx.lineTo(px + dx, py + dy) : ctx.moveTo(px + dx, py + dy))); ctx.stroke();
+      });
+    }
+    if (!magma) for (let i = 0; i < 14; i++) { const x = r() * S, y = r() * S, rr = 8 + r() * 12; for (const [ctx, col] of [[g, '#9a60ff'], [ge, '#a070ff']]) wrap((dx, dy) => { ctx.strokeStyle = col; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x + dx, y + dy, rr, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(x + dx, y + dy, rr * 0.55, 0, 7); ctx.stroke(); }); }
+  }
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
   let e = null;
-  if (kind === 'lava') { e = new THREE.CanvasTexture(emis); e.wrapS = e.wrapT = THREE.RepeatWrapping; e.colorSpace = THREE.SRGBColorSpace; }
+  if (kind === 'lava' || kind === 'magma' || kind === 'void') { e = new THREE.CanvasTexture(emis); e.wrapS = e.wrapT = THREE.RepeatWrapping; e.colorSpace = THREE.SRGBColorSpace; }
   return { map: t, emissive: e };
 }
+
+// See-through hole: scenery between the camera and the hero is cut away in a soft circle around the hero
+export const HOLE = { uHole: { value: new THREE.Vector3(-9999, -9999, 0) }, uHoleR: { value: 0 } };
+export function holeMaterial(m) {
+  if (!m || m.userData.holed) return m;
+  m.userData.holed = true;
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uHole = HOLE.uHole; sh.uniforms.uHoleR = HOLE.uHoleR;
+    sh.fragmentShader = 'uniform vec3 uHole; uniform float uHoleR;\n' + sh.fragmentShader.replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+      if (uHoleR > 0.0 && vViewPosition.z < uHole.z - 1.2) {
+        float hd = distance(gl_FragCoord.xy, uHole.xy) / uHoleR;
+        float dith = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
+        if (hd < 0.75 || (hd < 1.0 && dith > (hd - 0.75) * 4.0)) discard;
+      }`);
+  };
+  m.customProgramCacheKey = () => 'hole';
+  return m;
+}
+function holeAll(obj) { obj.traverse((o) => { if (o.isMesh) [].concat(o.material).forEach(holeMaterial); }); return obj; }
 
 // Instance every mesh of a loaded model at many transforms (one draw call per mesh)
 const _tinted = new Map();
@@ -106,7 +181,16 @@ function instanced(path, mats4, tint = null) {
   src.traverse((o) => {
     if (!o.isMesh) return;
     let mat = o.material;
-    if (tint != null) { const key = mat.uuid + tint; if (!_tinted.has(key)) { const m = mat.clone(); m.color.multiply(new THREE.Color(tint)); _tinted.set(key, m); } mat = _tinted.get(key); }
+    if (tint != null) {
+      const key = mat.uuid + String(tint);
+      if (!_tinted.has(key)) {
+        const m = mat.clone();
+        if (typeof tint === 'function') tint(m); else if (typeof tint === 'string') m.color.set(tint); else m.color.multiply(new THREE.Color(tint));
+        _tinted.set(key, m);
+      }
+      mat = _tinted.get(key);
+    }
+    holeMaterial(mat);
     const im = new THREE.InstancedMesh(o.geometry, mat, mats4.length);
     const local = o.matrixWorld;
     const m = new THREE.Matrix4();
@@ -118,6 +202,10 @@ function instanced(path, mats4, tint = null) {
 }
 const M4 = (x, y, z, ry = 0, sx = 1, sy = sx, sz = sx) => new THREE.Matrix4().compose(
   new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), ry), new THREE.Vector3(sx, sy, sz));
+
+// recolour helpers: snow-cover foliage/rock, keep wood and dark parts
+const snowy = (m) => { const c = m.color, hsl = {}; c.getHSL(hsl); if (hsl.l > 0.18 && !(hsl.h > 0.04 && hsl.h < 0.12 && hsl.s > 0.3)) c.setHSL(0.58, 0.25, 0.86); };
+const iceCrystal = (m) => { m.color.set('#9fd0ff'); m.emissive = new THREE.Color(0x1a4a80); m.emissiveIntensity = 0.6; m.roughness = 0.25; m.metalness = 0.1; };
 
 export class World {
   constructor(game) {
@@ -187,8 +275,8 @@ export class World {
     g.renderer.toneMappingExposure = def.exposure;
     if (!this.groundTex[def.ground]) this.groundTex[def.ground] = groundTexture(def.ground);
     const gt = this.groundTex[def.ground];
-    const rep = def.ground === 'cobble' ? 34 : def.ground === 'lava' ? 9 : 22; gt.map.repeat.set(rep, rep); this.groundMat.map = gt.map;
-    if (gt.emissive) { gt.emissive.repeat.set(rep, rep); this.groundMat.emissiveMap = gt.emissive; this.groundMat.emissive.set(0xff5a1a); this.groundMat.emissiveIntensity = 0.9; }
+    const rep = { cobble: 34, lava: 9, magma: 9, void: 8, tiles: 26, snow: 14 }[def.ground] || 22; gt.map.repeat.set(rep, rep); this.groundMat.map = gt.map;
+    if (gt.emissive) { gt.emissive.repeat.set(rep, rep); this.groundMat.emissiveMap = gt.emissive; this.groundMat.emissive.set(def.ground === 'void' ? 0xb080ff : 0xff5a1a); this.groundMat.emissiveIntensity = def.ground === 'magma' ? 1.3 : 0.9; }
     else { this.groundMat.emissiveMap = null; this.groundMat.emissive.set(0x000000); }
     this.groundMat.needsUpdate = true;
     this.shrink = 1; this.fogWall.visible = false;
@@ -201,7 +289,7 @@ export class World {
       const c = this.root.children.pop();
       c.traverse((o) => { if (o.isInstancedMesh) o.dispose(); });
     }
-    this.colliders = []; this.spawns = []; this.fires = [];
+    this.colliders = []; this.spawns = []; this.fires = []; this.floaters = null;
     this.torches.forEach((t) => { t.intensity = 0; t.userData.base = 0; });
   }
 
@@ -214,6 +302,7 @@ export class World {
     if (fixedScale) o.scale.setScalar(fixedScale);
     else if (h) { const b = measure(o); const s = h / Math.max(0.001, b.max.y - b.min.y); o.scale.setScalar(s); }
     o.position.set(x, y, z); o.rotation.y = ry;
+    holeAll(o);
     this.root.add(o); return o;
   }
 
@@ -374,6 +463,104 @@ export class World {
     for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2; const x = Math.sin(a) * (R + 1.5), z = Math.cos(a) * (R + 1.5); this.fires.push({ x, y: 0.2, z, size: 1.6 }); this._torch(i, x, 2, z, 3.2, 0xff4410); }
   }
 
+  // ---------------- Frozen Citadel ----------------
+  build_frozen() {
+    const R = this.radius = ARENA_R;
+    const ICE = 0xcfe2ff;
+    const N = 32, RW = R + 2.2, L = 2 * RW * Math.sin(Math.PI / N) + 0.15;
+    const walls = [], gates = [], tb = [], tm = [], tt = [];
+    const gateIdx = new Set([4, 12, 20, 28]);
+    for (let i = 0; i < N; i++) {
+      const a = (i + 0.5) / N * Math.PI * 2, x = Math.sin(a) * RW, z = Math.cos(a) * RW;
+      if (gateIdx.has(i)) { gates.push(M4(x, 0, z, a, L, 4.2, 4)); this.spawns.push({ x: Math.sin(a) * (R - 0.8), z: Math.cos(a) * (R - 0.8), yaw: a + Math.PI }); }
+      else if (i % 7 === 3) continue; // collapsed sections
+      else walls.push(M4(x, 0, z, a, L, 3 + (i % 3) * 0.6, 4));
+      if (i % 8 === 6) { const ta = i / N * Math.PI * 2, tx = Math.sin(ta) * (RW + 0.4), tz = Math.cos(ta) * (RW + 0.4); tb.push(M4(tx, 0, tz, ta, 5)); tm.push(M4(tx, 5, tz, ta, 5)); tt.push(M4(tx, 10, tz, ta, 5)); }
+    }
+    this.root.add(instanced('env/c_wall.glb', walls, ICE)); this.root.add(instanced('env/c_gate.glb', gates, ICE));
+    this.root.add(instanced('env/c_tower-square-base.glb', tb, ICE)); this.root.add(instanced('env/c_tower-square-mid.glb', tm, ICE)); this.root.add(instanced('env/c_tower-square-top-roof.glb', tt, 0xe8f2ff));
+    const rng = makeRng(555);
+    const cliffs = [], spikes = [], pines = [], pines2 = [], crystals = [];
+    for (let i = 0; i < 22; i++) { const a = i / 22 * 6.28 + rng() * 0.2, d = RW + 10 + rng() * 6; cliffs.push(M4(Math.sin(a) * d, -0.5, Math.cos(a) * d, rng() * 6, 8 + rng() * 6, 5 + rng() * 8, 8 + rng() * 6)); }
+    for (let i = 0; i < 60; i++) { const a = rng() * 6.28, d = RW + 4 + rng() * 35; (rng() < 0.5 ? pines : pines2).push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 6 + rng() * 4)); }
+    for (let i = 0; i < 18; i++) { const a = rng() * 6.28, d = RW + 3 + rng() * 25; spikes.push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 3 + rng() * 6)); }
+    // ice crystals inside the arena (cover)
+    [[8, 8], [-8, -8], [9, -7], [-9, 6]].forEach(([x, z], i) => { crystals.push(M4(x, 0, z, i, 1.6, 2.6 + i * 0.3, 1.6)); this.colliders.push({ x, z, r: 1.0 }); });
+    this.root.add(instanced('env/n_cliff_large_rock.glb', cliffs, snowy));
+    this.root.add(instanced('env/n_tree_pineTallA_detailed.glb', pines, snowy)); this.root.add(instanced('env/n_tree_pineTallB_detailed.glb', pines2, snowy));
+    this.root.add(instanced('env/n_rock_tallE.glb', spikes, snowy)); this.root.add(instanced('env/n_rock_tallE.glb', crystals, iceCrystal));
+    [[0, -R + 2], [R - 2, 0], [-R + 2, 0], [0, R - 2]].forEach(([x, z], i) => { this._torch(i, x, 2.5, z, 2.2, 0x88ccff); this.fires.push({ x, y: 0.3, z, size: 0.6, cold: true }); });
+  }
+
+  // ---------------- Sunken Temple ----------------
+  build_temple() {
+    const R = this.radius = ARENA_R;
+    const N = 28, RW = R + 1.6, L = 2 * RW * Math.sin(Math.PI / N);
+    const walls = [], arched = [], broken = [], doors = [], torches = [], banners = [];
+    const doorIdx = new Set([0, 7, 14, 21]);
+    for (let i = 0; i < N; i++) {
+      const a = (i + 0.5) / N * Math.PI * 2, x = Math.sin(a) * RW, z = Math.cos(a) * RW;
+      const sc = L / 4;
+      if (doorIdx.has(i)) { doors.push(M4(x, 0, z, a, sc, 1.3, 1)); this.spawns.push({ x: Math.sin(a) * (R - 0.8), z: Math.cos(a) * (R - 0.8), yaw: a + Math.PI }); continue; }
+      (i % 5 === 2 ? broken : i % 3 === 0 ? arched : walls).push(M4(x, 0, z, a, sc, 1.3, 1));
+      if (i % 4 === 1) torches.push(M4(Math.sin(a) * (RW - 0.5), 2.2, Math.cos(a) * (RW - 0.5), a + Math.PI, 1.4));
+      if (i % 4 === 3) banners.push(M4(Math.sin(a) * (RW - 0.4), 1.2, Math.cos(a) * (RW - 0.4), a + Math.PI, 1.5));
+    }
+    this.root.add(instanced('env/d_wall.glb', walls)); this.root.add(instanced('env/d_wall_arched.glb', arched)); this.root.add(instanced('env/d_wall_broken.glb', broken));
+    this.root.add(instanced('env/d_wall_doorway.glb', doors)); this.root.add(instanced('env/d_torch_mounted.glb', torches)); this.root.add(instanced('env/d_banner_patternA_red.glb', banners));
+    // pillars in two rings
+    const pil = [], pil2 = [];
+    for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28 + 0.52, d = 10; const x = Math.sin(a) * d, z = Math.cos(a) * d; (i % 2 ? pil : pil2).push(M4(x, 0, z, a, 1.5, 1.6, 1.5)); this.colliders.push({ x, z, r: 0.9 }); }
+    this.root.add(instanced('env/d_pillar.glb', pil)); this.root.add(instanced('env/d_pillar_decorated.glb', pil2));
+    const rng = makeRng(77);
+    const rub = [], rub2 = [], cols = [];
+    for (let i = 0; i < 14; i++) { const a = rng() * 6.28, d = R - 2 + rng() * 2; (rng() < 0.5 ? rub : rub2).push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 1.2 + rng())); }
+    for (let i = 0; i < 24; i++) { const a = rng() * 6.28, d = RW + 4 + rng() * 26; cols.push(M4(Math.sin(a) * d, -1 - rng() * 2, Math.cos(a) * d, rng() * 6, 2 + rng() * 2, 2 + rng() * 4, 2 + rng() * 2)); }
+    this.root.add(instanced('env/d_rubble_large.glb', rub)); this.root.add(instanced('env/d_rubble_half.glb', rub2)); this.root.add(instanced('env/d_column.glb', cols, 0x8a9080));
+    // treasure dais in the middle
+    this._place('env/d_chest_gold.glb', 0, -3.2, Math.PI, null, 0, 1.4); this.colliders.push({ x: 0, z: -3.2, r: 0.8 });
+    this._place('env/d_coin_stack_large.glb', 1.2, -3, 0, null, 0, 1.2); this._place('env/d_candle_triple.glb', -1.3, -3, 0, null, 0, 1.3);
+    this._place('env/d_barrel_large.glb', -12, 10, 0.3, null, 0, 1.4); this.colliders.push({ x: -12, z: 10, r: 0.8 });
+    this._place('env/d_box_stacked.glb', 12, -10, 0.8, null, 0, 1.3); this.colliders.push({ x: 12, z: -10, r: 1.0 });
+    this._place('env/d_sword_shield_broken.glb', 6, 12, 1.2, null, 0, 1.5);
+    [[10, 10], [-10, -10], [10, -10], [-10, 10]].forEach(([x, z], i) => { this._torch(i, x * 1.6, 2.6, z * 1.6, 2.6, 0xffa050); this.fires.push({ x: x * 1.6, y: 2.4, z: z * 1.6, size: 0.4 }); });
+  }
+
+  // ---------------- Volcano Forge ----------------
+  build_forge() {
+    const R = this.radius = ARENA_R + 1;
+    const rng = makeRng(661);
+    const cliffs = [], cliffs2 = [], spikes = [], cols = [], bars = [], rub = [];
+    for (let i = 0; i < 24; i++) { const a = i / 24 * 6.28, d = R + 3 + rng() * 2; (i % 2 ? cliffs : cliffs2).push(M4(Math.sin(a) * d, -0.3, Math.cos(a) * d, a + rng(), 7 + rng() * 5, 7 + rng() * 8, 7 + rng() * 5)); }
+    for (let i = 0; i < 26; i++) { const a = rng() * 6.28, d = R + 10 + rng() * 30; spikes.push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 8 + rng() * 12)); }
+    for (let i = 0; i < 4; i++) { const a = i / 4 * 6.28 + 0.78, d = 9.5; const x = Math.sin(a) * d, z = Math.cos(a) * d; cols.push(M4(x, 0, z, a, 1.8, 2.2, 1.8)); this.colliders.push({ x, z, r: 1.0 }); }
+    for (let i = 0; i < 10; i++) { const a = rng() * 6.28, d = R - 2.5 + rng() * 2; bars.push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 1.6)); }
+    for (let i = 0; i < 12; i++) { const a = rng() * 6.28, d = R - 3 + rng() * 3; rub.push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 1.4 + rng())); }
+    this.root.add(instanced('env/n_cliff_large_rock.glb', cliffs, 0x6a3a30)); this.root.add(instanced('env/n_cliff_block_rock.glb', cliffs2, 0x5a3028));
+    this.root.add(instanced('env/n_rock_tallE.glb', spikes, 0x40201a)); this.root.add(instanced('env/d_column.glb', cols, 0x7a5040));
+    this.root.add(instanced('env/d_barrier_column.glb', bars, 0x60403a)); this.root.add(instanced('env/c_rocks-large.glb', rub, 0x70402a));
+    for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2; this.spawns.push({ x: Math.sin(a) * (R - 1), z: Math.cos(a) * (R - 1), yaw: a + Math.PI }); }
+    for (let i = 0; i < 4; i++) { const a = i / 4 * 6.28 + 0.78; const x = Math.sin(a) * (R + 1.5), z = Math.cos(a) * (R + 1.5); this.fires.push({ x, y: 0.2, z, size: 2.0 }); this._torch(i, x, 2, z, 3.6, 0xff4410); }
+    for (let i = 0; i < 4; i++) { const a = i / 4 * 6.28 + 0.78, d = 9.5; this.fires.push({ x: Math.sin(a) * d, y: 4.6, z: Math.cos(a) * d, size: 0.7 }); }
+  }
+
+  // ---------------- The Void ----------------
+  build_void() {
+    const R = this.radius = ARENA_R;
+    const rng = makeRng(888);
+    const VO = 0x6a4a90;
+    const obel = [], cols = [], float1 = [], float2 = [], rub = [];
+    for (let i = 0; i < 8; i++) { const a = i / 8 * 6.28 + 0.39, d = R + 1.5; obel.push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, a, 1.6, 2.4, 1.6)); }
+    [[7, 7], [-7, -7], [7, -7], [-7, 7]].forEach(([x, z], i) => { cols.push(M4(x, 0, z, i, 1.4, 1.8 + i * 0.2, 1.4)); this.colliders.push({ x, z, r: 0.85 }); });
+    for (let i = 0; i < 40; i++) { const a = rng() * 6.28, d = R + 6 + rng() * 30; (rng() < 0.5 ? float1 : float2).push(M4(Math.sin(a) * d, 3 + rng() * 14, Math.cos(a) * d, rng() * 6, 2 + rng() * 5)); }
+    for (let i = 0; i < 12; i++) { const a = rng() * 6.28, d = R - 2 + rng() * 2; rub.push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 1.2 + rng())); }
+    this.root.add(instanced('env/d_pillar_decorated.glb', obel, VO)); this.root.add(instanced('env/d_column.glb', cols, VO));
+    const fl = new THREE.Group(); fl.add(instanced('env/n_rock_tallE.glb', float1, 0x40305a)); fl.add(instanced('env/n_cliff_block_rock.glb', float2, 0x352848)); this.root.add(fl); this.floaters = fl;
+    this.root.add(instanced('env/d_rubble_large.glb', rub, VO));
+    for (let i = 0; i < 4; i++) { const a = i / 4 * Math.PI * 2; this.spawns.push({ x: Math.sin(a) * (R - 0.8), z: Math.cos(a) * (R - 0.8), yaw: a + Math.PI }); }
+    [[0, -R + 2], [R - 2, 0], [-R + 2, 0], [0, R - 2]].forEach(([x, z], i) => { this._torch(i, x, 2.5, z, 2.8, 0xa060ff); this.fires.push({ x, y: 0.3, z, size: 0.8, cold: true, void: true }); });
+  }
+
   // keep actors inside arena and out of obstacles
   resolve(p, r) {
     const R = this.effectiveRadius - r;
@@ -388,7 +575,7 @@ export class World {
   update(dt, t) {
     for (const f of this.fires) {
       if (Math.random() < dt * 22 * f.size) {
-        if (f.cold) this.game.fx.add.emit(f.x + frand(-0.2, 0.2), f.y, f.z + frand(-0.2, 0.2), 0, frand(1, 2), 0, 0.35, 0.55, 1, frand(0.3, 0.6), 0.6, -0.5, 1, -0.5);
+        if (f.cold) this.game.fx.add.emit(f.x + frand(-0.2, 0.2), f.y, f.z + frand(-0.2, 0.2), 0, frand(1, 2), 0, f.void ? 0.65 : 0.35, f.void ? 0.3 : 0.55, 1, frand(0.3, 0.6), 0.6, -0.5, 1, -0.5);
         else this.game.fx.fire(f, 1, f.size);
       }
       if (!f.cold && Math.random() < dt * 4 * f.size) this.game.fx.embers({ x: f.x, y: f.y + 1, z: f.z }, 1);
@@ -399,7 +586,15 @@ export class World {
       const a = Math.random() * 6.28, d = Math.random() * this.radius;
       this.game.fx.add.emit(Math.sin(a) * d, frand(0.5, 3), Math.cos(a) * d, frand(-0.3, 0.3), frand(-0.1, 0.3), frand(-0.3, 0.3), 0.7, 1, 0.4, 0.12, 3, 0, 0);
     }
-    if (this.key === 'peak' && Math.random() < dt * 10) {
+    if (this.key === 'frozen' && Math.random() < dt * 40) { // snowfall
+      const hp = this.game.hero?.pos || { x: 0, z: 0 }, a = Math.random() * 6.28, d = Math.random() * 18;
+      this.game.fx.add.emit(hp.x + Math.sin(a) * d, frand(6, 10), hp.z + Math.cos(a) * d, frand(-0.4, 0.4), -1.6, frand(-0.4, 0.4), 0.9, 0.95, 1, 0.1, 5, 0, 0);
+    }
+    if (this.key === 'void') {
+      if (this.floaters) this.floaters.rotation.y = t * 0.02;
+      if (Math.random() < dt * 14) { const a = Math.random() * 6.28, d = Math.random() * 30; this.game.fx.add.emit(Math.sin(a) * d, frand(0, 1), Math.cos(a) * d, 0, frand(0.6, 1.4), 0, 0.6, 0.35, 1, 0.14, 3, 0, 0); }
+    }
+    if ((this.key === 'peak' || this.key === 'forge') && Math.random() < dt * (this.key === 'forge' ? 18 : 10)) {
       const a = Math.random() * 6.28, d = Math.random() * 40;
       this.game.fx.embers({ x: Math.sin(a) * d, y: 0.2, z: Math.cos(a) * d }, 1);
     }

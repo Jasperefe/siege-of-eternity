@@ -170,6 +170,41 @@ class AudioSys {
   }
 
   // ---- Music (streamed <audio>, low memory) ----
+  // Wave 50+: slower, lower, echoing music with a drone and wind underneath
+  setDark(on) {
+    if (!this.ctx || this.dark === on) return;
+    this.dark = on;
+    const c = this.ctx, t = c.currentTime;
+    if (!this._darkNodes) {
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; lp.Q.value = 0.6;
+      const conv = c.createConvolver(); const len = c.sampleRate * 3, ir = c.createBuffer(2, len, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); }
+      conv.buffer = ir; const wet = c.createGain(); wet.gain.value = 0.45; conv.connect(wet); lp.connect(conv);
+      const drone = c.createGain(); drone.gain.value = 0;
+      for (const [f, g] of [[55, 0.5], [55.6, 0.4], [82.4, 0.25], [110, 0.12]]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; const og = c.createGain(); og.gain.value = g; o.connect(og).connect(drone); o.start(); }
+      const wind = c.createBufferSource(); wind.buffer = this.noise; wind.loop = true; const wf = c.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 400; wf.Q.value = 0.7;
+      const wg = c.createGain(); wg.gain.value = 0.35; wind.connect(wf).connect(wg).connect(drone); wind.start();
+      const dlp = c.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 300; drone.connect(dlp).connect(this.musicGain);
+      this._darkNodes = { lp, wet, drone };
+    }
+    const n = this._darkNodes;
+    this.musicGain.disconnect();
+    if (on) { this.musicGain.connect(n.lp); n.lp.connect(this.master); n.wet.connect(this.master); n.drone.gain.setTargetAtTime(0.07, t, 2); }
+    else { try { n.lp.disconnect(this.master); n.wet.disconnect(); } catch (e) {} this.musicGain.connect(this.master); n.drone.gain.setTargetAtTime(0, t, 0.5); }
+    if (this.music) { this.music.preservesPitch = !on; this.music.webkitPreservesPitch = !on; this.music.playbackRate = on ? 0.84 : 1; }
+  }
+  // deep bell toll for the wave-50 arrival
+  toll() {
+    if (!this.ctx || !this.enabled) return;
+    const c = this.ctx, t = c.currentTime;
+    for (const [f, g, d] of [[98, 0.5, 6], [196, 0.25, 4], [293.7, 0.12, 3], [415, 0.08, 2.5]]) {
+      const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f; const gn = c.createGain();
+      gn.gain.setValueAtTime(0, t); gn.gain.linearRampToValueAtTime(g, t + 0.01); gn.gain.exponentialRampToValueAtTime(0.001, t + d);
+      o.connect(gn).connect(this.sfxGain); o.start(t); o.stop(t + d);
+    }
+    this.boom(0.6, 0.3);
+  }
+
   playMusic(name, url) {
     if (!this.ctx) return;
     if (this.musicName === name) return;
@@ -179,6 +214,7 @@ class AudioSys {
     a.muted = !this.enabled;
     try { const src = this.ctx.createMediaElementSource(a); src.connect(this.musicGain); a.volume = 1; } catch (e) { a.volume = this.vol.music * 0.55; }
     this.music = a; this.musicName = name;
+    if (this.dark) { a.preservesPitch = false; a.webkitPreservesPitch = false; a.playbackRate = 0.84; }
     (window.SOE_RESOLVE ? window.SOE_RESOLVE(url) : Promise.resolve(url)).then((u) => {
       if (this.music !== a) return;
       a.src = u;

@@ -121,7 +121,7 @@ export class UI {
   panel(title, body, cls = '', back = 'back') {
     this.show(`<div class="panel">
       <header class="panel-head"><button class="btn icon-only" data-act="${back}" aria-label="${T('Back')}">${icon('back')}</button><h2>${title}</h2></header>
-      <div class="panel-body">${body}</div></div>`, 'sub ' + cls);
+      <div class="panel-body">${body}</div></div>`, 'subscreen ' + cls);
   }
 
   showHeroes() {
@@ -252,6 +252,7 @@ export class UI {
         <div><b>${info.parries}</b><span>${T('Parries')}</span></div>
         <div><b>+${info.shards}</b><span>${T('Soul Shards')}</span></div>
       </div>
+      ${info.adDouble ? `<button class="btn sm brass" data-act="adDouble">${icon('film')}<span>${T('Watch an ad to double your shards (+{n})', { n: info.shards })}</span></button>` : ''}
       ${info.unlocks.length ? `<div class="unlocks">${info.unlocks.map((u) => `<div>🔓 ${esc(u)}</div>`).join('')}</div>` : ''}
       ${offers.length ? `<div class="revive"><p>${T('Rise again?')} <small>${T('Once per run')}</small></p><div class="row2">${offers.join('')}</div></div>` : ''}
       <div class="row2"><button class="${retryCls}" data-act="retry" data-focus>${icon('sword')}<span>${T('Try again')}</span></button><button class="btn ${offers.length ? 'equal' : ''}" data-act="menu"><span>${T('Menu')}</span></button></div>
@@ -288,8 +289,13 @@ export class UI {
   updatePlates(camera, w, h) {
     const g = this.game, v = this._v;
     const seen = new Set();
+    // keep name tags out of the top HUD
+    if (!this._hudB || (this._hudBT = (this._hudBT || 0) + 1) % 60 === 0) {
+      const a = document.getElementById('hud-mid').getBoundingClientRect(), b = document.getElementById('hud-left').getBoundingClientRect();
+      this._hudB = Math.max(a.bottom, b.bottom) + 34;
+    }
     for (const e of g.enemies) {
-      if (e.dead || (!e.elite && !e.thief && !(e.status.stagger > 0))) continue;
+      if (e.dead || (!e.elite && !e.thief && !e.ascended && !(e.status.stagger > 0))) continue;
       if (e.isBoss) continue;
       seen.add(e);
       let el = this.plateEls.get(e);
@@ -298,13 +304,14 @@ export class UI {
         el.innerHTML = `<div class="pn"></div><div class="pb"><i></i></div>`;
         this.plates.appendChild(el); this.plateEls.set(e, el);
       }
-      const name = e.elite || e.thief ? `${e.affixes.map((a) => AFFIX_ICON[a] || '').join('')} ${t(e.name)}` : '';
+      const name = e.ascended ? '✦ ' + t(e.name) : e.elite || e.thief ? `${e.affixes.map((a) => AFFIX_ICON[a] || '').join('')} ${t(e.name)}` : '';
       if (el._n !== name) { el.querySelector('.pn').textContent = name; el._n = name; }
       el.classList.toggle('stun', e.status.stagger > 0);
       el.querySelector('i').style.width = (e.hp / e.maxHp * 100).toFixed(1) + '%';
       v.set(e.pos.x, e.pivot.position.y + e.height * e.root.scale.x + 0.5, e.pos.z).project(camera);
       el.style.transform = `translate(${((v.x * 0.5 + 0.5) * w).toFixed(1)}px,${((-v.y * 0.5 + 0.5) * h).toFixed(1)}px) translate(-50%,-100%)`;
-      el.style.display = v.z < 1 ? 'block' : 'none';
+      const py = (-v.y * 0.5 + 0.5) * h;
+      el.style.display = v.z < 1 && py > this._hudB && !e.cloaked ? 'block' : 'none';
     }
     for (const [e, el] of this.plateEls) if (!seen.has(e)) { el.remove(); this.plateEls.delete(e); }
   }
@@ -335,6 +342,10 @@ export class UI {
   toast(msg, p) {
     const d = document.createElement('div'); d.className = 'toast'; d.textContent = t(msg, p); this.toasts.appendChild(d);
     setTimeout(() => d.remove(), 3500);
+  }
+  ascendedSpawn(e) {
+    this.annEl.innerHTML = `<div class="ann ascended"><small>${T('An Ascended has come')}</small><div>${T(e.name)}</div></div>`;
+    clearTimeout(this._annT); this._annT = setTimeout(() => (this.annEl.innerHTML = ''), 2600);
   }
   eliteSpawn(e) { this.toast('{name} has entered the arena!', { name: '☠️ ' + t(e.name) }); }
   killFeed() {}

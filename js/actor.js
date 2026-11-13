@@ -75,6 +75,7 @@ export class Actor {
   }
 
   action(name) {
+    if (this.alias && this.alias[name]) name = this.alias[name];
     if (this.actions[name]) return this.actions[name];
     let clip = this.clipMap[name];
     if (!clip && Assets.kkMap[name]) { clip = Assets.kkMap[name]; this.clipMap[name] = clip; } // late-loaded KayKit clips

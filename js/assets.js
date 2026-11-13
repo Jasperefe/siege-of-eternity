@@ -9,6 +9,7 @@ let BASE = './assets/';
 const gltfL = new GLTFLoader();
 const fbxL = new FBXLoader();
 const rgbeL = new RGBELoader();
+const texL = new THREE.TextureLoader();
 
 const cache = new Map();   // key -> {scene, clips}
 const pending = new Map();
@@ -38,6 +39,10 @@ export const Assets = {
     const p = fbxL.loadAsync(BASE + path).then((obj) => {
       const entry = { scene: obj, clips: obj.animations || [] };
       prepare(entry.scene, true);
+      // FBX files whose textures sit next to them as <MaterialName>.png (RPG Characters pack)
+      if (path.startsWith('rpg/')) obj.traverse((o) => { if (!o.isMesh) return; [].concat(o.material).forEach((m) => {
+        if (m && !m.map && /_Texture$/.test(m.name)) { m.map = texL.load(BASE + 'rpg/' + m.name + '.png'); m.map.colorSpace = THREE.SRGBColorSpace; m.color.setRGB(1, 1, 1); m.needsUpdate = true; }
+      }); });
       entry.clips.forEach(stripRootMotion);
       cache.set(path, entry); pending.delete(path); this.stats.loaded++;
       return entry;
@@ -80,6 +85,20 @@ export const Assets = {
     return c;
   },
   clips(path) { return cache.get(path)?.clips || []; },
+  // Dress a skinned character with a separately skinned outfit that uses the same bone names
+  dress(model, outfitPath) {
+    const bones = {}; model.traverse((o) => { if (o.isBone) bones[o.name] = o; });
+    const host = []; model.traverse((o) => { if (o.isSkinnedMesh) host.push(o); });
+    const parent = host[0]?.parent || model;
+    const src = SkeletonUtils.clone(cache.get(outfitPath).scene);
+    const meshes = []; src.traverse((o) => { if (o.isSkinnedMesh) meshes.push(o); });
+    for (const m of meshes) {
+      const sk = new THREE.Skeleton(m.skeleton.bones.map((b) => bones[b.name] || b), m.skeleton.boneInverses);
+      parent.add(m); m.bind(sk, host[0] ? host[0].bindMatrix : m.bindMatrix);
+      m.castShadow = true; m.frustumCulled = false;
+    }
+    return meshes;
+  },
 };
 
 // Shadows + material fixes on load
@@ -115,7 +134,7 @@ function stripRootMotion(clip) {
   for (const tr of clip.tracks) {
     if (!tr.name.endsWith('.position')) continue;
     const bone = tr.name.slice(0, -9).toLowerCase();
-    if (!(bone.endsWith('hips') || bone.endsWith('root') || bone.endsWith('root_1') || bone === 'body' || bone.endsWith('armature'))) continue;
+    if (!(bone.endsWith('hips') || bone === 'pelvis' || bone.endsWith('root') || bone.endsWith('root_1') || bone === 'body' || bone.endsWith('armature'))) continue;
     const v = tr.values;
     const x0 = v[0], z0 = v[2];
     for (let i = 0; i < v.length; i += 3) { v[i] = x0; v[i + 2] = z0; }

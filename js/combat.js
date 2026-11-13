@@ -97,6 +97,11 @@ export class Combat {
       }
     }
     if (e.armor && !(e.status.stagger > 0)) dmg *= 1 - e.armor;
+    if (e.def.thorns && src === hero && !o.dot && !o.proj && !o.aoe && hero.state !== 'dead' && g.time > (e._thornT || 0)) {
+      e._thornT = g.time + 0.35;
+      hero.receive(hero.maxHp * e.def.thorns, e, { unblockable: true, thorns: true, knock: 0 });
+      g.fx.sparks({ x: hero.pos.x, y: 1.2, z: hero.pos.z }, 8, [0.5, 1, 0.4], 4);
+    }
     if (e.isBoss && e.bossShield) dmg *= 0.2;
     if (e.vulnerable) dmg *= 1.6;
     dmg = Math.max(1, Math.round(dmg));
@@ -268,7 +273,7 @@ export class Combat {
     const tx = hero.pos.x + hero.vel.x * lead, tz = hero.pos.z + hero.vel.z * lead;
     const yaw = Math.atan2(tx - e.pos.x, tz - e.pos.z) + spread;
     const h = e.flying ? e.pivot.position.y + 0.6 : e.height * 0.65 * e.root.scale.x;
-    this.spawnProj({ kind: a.proj, team: 'enemy', from: e, dmg: e.dmg * (a.dmg || 1), speed: a.speed * (1 + e.tier * 0.06), x: e.pos.x + Math.sin(yaw) * 0.8, y: h, z: e.pos.z + Math.cos(yaw) * 0.8, yaw, aoe: a.aoe, slow: a.slow, life: 3, dropTo: 1.1 });
+    this.spawnProj({ kind: a.proj, team: 'enemy', from: e, dmg: e.dmg * (a.dmg || 1), speed: a.speed * (1 + e.tier * 0.06), x: e.pos.x + Math.sin(yaw) * 0.8, y: h, z: e.pos.z + Math.cos(yaw) * 0.8, yaw, aoe: a.aoe, slow: a.slow, homing: a.homing, life: a.homing ? 3.5 : 3, dropTo: 1.1 });
     if (a.proj === 'fireball') Audio2.fire(0.25, 0.5); else if (a.proj === 'arrow') Audio2.play('swing', { vol: 0.25, rate: 1.6 }); else Audio2.magic(0.15, 0.7);
   }
 
@@ -322,6 +327,9 @@ export class Combat {
       if (p.homing && p.team === 'hero') {
         const t = g.nearestEnemy(p.pos, 9, p.hit);
         if (t) { const want = Math.atan2(t.pos.x - p.pos.x, t.pos.z - p.pos.z), cur = Math.atan2(p.vel.x, p.vel.z), nw = cur + angleDiff(cur, want) * Math.min(1, p.homing * dt); p.vel.set(Math.sin(nw) * p.speed, 0, Math.cos(nw) * p.speed); }
+      }
+      if (p.homing && p.team === 'enemy' && p.t < 1.6 && hero) {
+        const want = Math.atan2(hero.pos.x - p.pos.x, hero.pos.z - p.pos.z), cur = Math.atan2(p.vel.x, p.vel.z), nw = cur + angleDiff(cur, want) * Math.min(1, p.homing * dt); p.vel.set(Math.sin(nw) * p.speed, 0, Math.cos(nw) * p.speed);
       }
       if (p.fall) { p.vel.y -= 30 * dt; }
       else if (p.dropTo && p.pos.y > p.dropTo) p.pos.y = Math.max(p.dropTo, p.pos.y - dt * 1.2);
@@ -398,6 +406,44 @@ export class Combat {
     }
   }
 
+  // Battle Sage: shields nearby allies (half damage) for a few seconds
+  ward(src) {
+    const g = this.game;
+    g.fx.magic({ x: src.pos.x, y: 2, z: src.pos.z }, [0.4, 0.6, 1], 30, 5); Audio2.magic(0.25, 0.9);
+    for (const e of g.enemies) if (!e.dead && src.dist(e) < 12 && !e.isBoss) {
+      if (!(e.wardT > 0)) { e._armorBase = e.armor; e.armor = Math.max(e.armor, 0.5); e.setTint(0x2244ff, 0.5); }
+      e.wardT = 6; g.fx.magic({ x: e.pos.x, y: 1, z: e.pos.z }, [0.4, 0.6, 1], 8, 2);
+    }
+  }
+  // Sporelord: poison clouds around the hero
+  spores(src, dmg) {
+    const g = this.game, h = g.hero;
+    for (let i = 0; i < 3; i++) {
+      const a = Math.random() * 6.28, d = i === 0 ? 0.5 : frand(2, 4);
+      this.hazards.push({ kind: 'poison', x: h.pos.x + Math.sin(a) * d, z: h.pos.z + Math.cos(a) * d, r: 2.2, t: 6, dps: dmg * 0.45 });
+    }
+    Audio2.magic(0.2, 0.5);
+  }
+  // Ascended Archmage: a ring of runes closes around the hero, then detonates
+  runes(src, dmg) {
+    const g = this.game, h = g.hero, n = 8, cx = h.pos.x, cz = h.pos.z;
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2, x = cx + Math.sin(a) * 2.6, z = cz + Math.cos(a) * 2.6;
+      g.fx.telegraph({ x, y: 0, z }, 1.5, 1.3, [0.7, 0.3, 1]);
+      this.hazards.push({ kind: 'bomb', x, z, r: 1.5, t: 1.3, dmg, color: [0.7, 0.4, 1] });
+    }
+    g.fx.telegraph({ x: cx, y: 0, z: cz }, 1.3, 1.3, [0.7, 0.3, 1]);
+    this.hazards.push({ kind: 'bomb', x: cx, z: cz, r: 1.3, t: 1.45, dmg, color: [0.7, 0.4, 1] });
+    Audio2.magic(0.3, 0.6);
+  }
+  // Ascended Warlord: war cry empowers every enemy on the field
+  warcry(src) {
+    const g = this.game;
+    g.fx.shockwave(src.pos, 9, [1, 0.3, 0.1]); g.shake(0.5); Audio2.roar(0.6);
+    g.ui.announce('THE WARLORD ROARS', 'boss', 1.4);
+    for (const e of g.enemies) if (!e.dead && !(e.buffT > 0)) { e.buffT = 8; e.dmgMul *= 1.3; e.speedMul *= 1.2; e.setTint(0x661100, 0.55); }
+  }
+
   summon(src, key, n) {
     const g = this.game;
     for (let i = 0; i < n; i++) {
@@ -456,8 +502,11 @@ export class Combat {
       if (h.kind === 'fire') {
         if (Math.random() < dt * 14 * h.r) g.fx.fire({ x: h.x + frand(-h.r, h.r) * 0.7, y: 0.1, z: h.z + frand(-h.r, h.r) * 0.7 }, 1, 0.8);
         if (Math.hypot(hero.pos.x - h.x, hero.pos.z - h.z) < h.r && !hero.invulnerable) { h.tick = (h.tick || 0) + dt; if (h.tick > 0.4) { h.tick = 0; hero.receive(h.dps * 0.4, { x: h.x, z: h.z }, { unblockable: true }); } }
+      } else if (h.kind === 'poison') {
+        if (Math.random() < dt * 10 * h.r) g.fx.add.emit(h.x + frand(-h.r, h.r) * 0.7, 0.2, h.z + frand(-h.r, h.r) * 0.7, 0, frand(0.4, 1), 0, 0.35, 1, 0.25, frand(0.4, 0.8), 1.2, -0.2, 1, -0.3);
+        if (Math.hypot(hero.pos.x - h.x, hero.pos.z - h.z) < h.r && !hero.invulnerable) { h.tick = (h.tick || 0) + dt; if (h.tick > 0.5) { h.tick = 0; hero.receive(h.dps * 0.5, { x: h.x, z: h.z }, { unblockable: true, knock: 0 }); } }
       } else if (h.kind === 'bomb' && h.t <= 0) {
-        g.fx.explosion({ x: h.x, y: 0, z: h.z }, h.r, [1, 0.5, 0.1]); Audio2.boom(0.5); g.shake(0.3);
+        g.fx.explosion({ x: h.x, y: 0, z: h.z }, h.r, h.color || [1, 0.5, 0.1]); Audio2.boom(0.5); g.shake(0.3);
         if (Math.hypot(hero.pos.x - h.x, hero.pos.z - h.z) < h.r) hero.receive(h.dmg, { x: h.x, z: h.z }, { unblockable: true, knock: 8 });
         for (const e of g.enemies) if (!e.dead && Math.hypot(e.pos.x - h.x, e.pos.z - h.z) < h.r) this.dealToEnemy(e, h.dmg, null, { aoe: true });
       }

@@ -81,8 +81,22 @@ export const HEROES = {
       { anim: 'Melee_Dualwield_Attack_Stab', dur: 0.42, hit: 0.5, dmg: 2.2, range: 2.8, arc: 70, tilt: 0, lunge: 0, blink: true, knock: 5, heavy: true },
     ],
   },
+  monk: {
+    name: 'Oren the Wanderer', cls: 'Monk', model: 'rpg/Monk.fbx', icon: '👊', ownClips: true,
+    blurb: 'Bare-fisted and blindingly fast. The best dodger, but fragile.',
+    unlock: { type: 'wave', v: 20, text: 'Reach wave 20' }, hp: 105, speed: 7.1, dmg: 15, blockReduce: 0.55, dodges: 2, crit: 0.15,
+    weapons: [],
+    alias: { Dodge_Forward: 'CharacterArmature|Roll', Hit_A: 'CharacterArmature|RecieveHit', Hit_B: 'CharacterArmature|RecieveHit', Death_A: 'CharacterArmature|Death' },
+    idle: 'CharacterArmature|Idle', run: 'CharacterArmature|Run', block: 'CharacterArmature|Idle_Attacking', blockHit: 'CharacterArmature|RecieveHit_Attacking', riposte: 'CharacterArmature|Attack2',
+    combo: [
+      { anim: 'CharacterArmature|Attack', dur: 0.26, hit: 0.5, dmg: 1.0, range: 2.2, arc: 120, tilt: 0.2, lunge: 1.8 },
+      { anim: 'CharacterArmature|Attack2', dur: 0.28, hit: 0.5, dmg: 1.1, range: 2.3, arc: 120, tilt: -0.2, lunge: 1.8, flip: true },
+      { anim: 'CharacterArmature|Attack', dur: 0.24, hit: 0.5, dmg: 1.1, range: 2.2, arc: 120, tilt: 0.3, lunge: 1.6 },
+      { anim: 'CharacterArmature|Attack2', dur: 0.46, hit: 0.5, dmg: 2.4, range: 2.8, arc: 160, tilt: 0, lunge: 2.6, aoe: 2.6, knock: 10, shake: 0.4, heavy: true },
+    ],
+  },
 };
-export const HERO_ORDER = ['knight', 'barbarian', 'rogue', 'ranger', 'mage', 'shade'];
+export const HERO_ORDER = ['knight', 'barbarian', 'rogue', 'ranger', 'mage', 'monk', 'shade'];
 export const heroAssets = (k) => [HEROES[k].model, ...HEROES[k].weapons.map((w) => w[0])];
 
 export class Hero extends Actor {
@@ -90,7 +104,8 @@ export class Hero extends Actor {
     super(game, { radius: 0.55 });
     this.key = key; this.def = HEROES[key];
     this.team = 'hero';
-    this.build(this.def.model, game.kkClips, 1.9);
+    this.build(this.def.model, this.def.ownClips ? game.assets.clips(this.def.model) : game.kkClips, 1.9);
+    this.alias = this.def.alias || null;
     for (const [w, bone] of this.def.weapons) this.attach(w, bone);
     this.state = 'idle'; this.stateT = 0;
     this.comboIdx = 0; this.comboWindow = 0; this.queued = false;
@@ -108,15 +123,17 @@ export class Hero extends Actor {
   recalc() {
     const d = this.def, u = this.game.save.upg, m = this.game.run?.mods || {};
     const s = this.stats;
+    // stacking bonuses get weaker past a soft cap, so late runs can't become untouchable
+    const soft = (x, knee, k, cap = Infinity) => Math.min(cap, x <= knee ? x : knee + (x - knee) * k);
     s.maxHp = Math.round((d.hp + u.vitality * 12 + (m.maxHp || 0)) * (m.hpMul || 1));
-    s.speed = d.speed * (1 + u.swift * 0.03 + (m.speed || 0));
-    s.dmg = d.dmg * (1 + u.might * 0.06 + (m.dmg || 0)) * (m.dmgMul || 1);
-    s.crit = d.crit + (m.crit || 0); s.critMul = 2 + (m.critMul || 0);
-    s.atkSpeed = 1 + (m.atkSpeed || 0);
-    s.dodgeCd = 0.55 * (1 - (m.dodgeCd || 0));
-    s.dodges = d.dodges + (m.dodges || 0);
-    s.blockReduce = Math.min(0.95, d.blockReduce + (m.block || 0));
-    s.wrathGain = 1 + u.wrath * 0.1 + (m.wrathGain || 0);
+    s.speed = d.speed * (1 + soft(u.swift * 0.03 + (m.speed || 0), 0.25, 0.4, 0.5));
+    s.dmg = d.dmg * (1 + soft(u.might * 0.06 + (m.dmg || 0), 1.0, 0.5)) * (m.dmgMul || 1);
+    s.crit = Math.min(0.5, d.crit + (m.crit || 0)); s.critMul = 2 + soft(m.critMul || 0, 0.6, 0.5);
+    s.atkSpeed = 1 + soft(m.atkSpeed || 0, 0.3, 0.4, 0.6);
+    s.dodgeCd = 0.55 * (1 - Math.min(0.4, m.dodgeCd || 0));
+    s.dodges = Math.min(d.dodges + 2, d.dodges + (m.dodges || 0));
+    s.blockReduce = Math.min(0.9, d.blockReduce + (m.block || 0));
+    s.wrathGain = 1 + u.wrath * 0.1 + soft(m.wrathGain || 0, 0.6, 0.5);
     s.parryWin = 0.2 + (m.parryWin || 0);
     const old = this.maxHp; this.maxHp = s.maxHp;
     if (this.maxHp > old && old > 0) this.hp += this.maxHp - old;
@@ -319,8 +336,13 @@ export class Hero extends Actor {
     }
   }
 
-  heal(v) {
+  heal(v, capped = true) {
     if (this.game.run?.mode === 'eternity') return;
+    if (capped) { // healing from hits/kills is limited per second so lifesteal can't out-heal a crowd
+      const now = this.game.time; if (now - (this._healWin || 0) > 1) { this._healWin = now; this._healUsed = 0; }
+      const room = this.maxHp * 0.12 - this._healUsed; v = Math.max(0, Math.min(v, room)); this._healUsed += v;
+      if (v <= 0) return;
+    }
     const before = this.hp;
     this.hp = Math.min(this.maxHp, this.hp + v);
     if (this.hp - before >= 1) this.game.fx.number(this.pos, '+' + Math.round(this.hp - before), 'heal');

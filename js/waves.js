@@ -1,5 +1,5 @@
 // Wave director: budgets, difficulty curve, events, elites, hazards and boss AI
-import { ENEMIES } from './enemies.js';
+import { ENEMIES, ASCENDED } from './enemies.js';
 import { Audio2 } from './audio.js';
 import { angleDiff, clamp, frand } from './util.js';
 
@@ -13,15 +13,17 @@ export const EVENTS = {
   swarm: { name: 'Bat Swarm', icon: '🦇', desc: 'The sky darkens with bloodthirsty bats', min: 11 },
 };
 
-// 40-wave cycle: courtyard 1-10, village 11-20, forest 21-29, Dragon's Peak 30-40, then it loops (harder)
+// 80-wave cycle: courtyard 1-10, village 11-20, forest 21-29, peak 30-40, frozen 41-50, temple 51-60, forge 61-70, void 71-80
 export function sceneForWave(n) {
-  const w = ((n - 1) % 40) + 1;
-  return w <= 10 ? 'courtyard' : w <= 20 ? 'village' : w <= 29 ? 'forest' : 'peak';
+  const w = ((n - 1) % 80) + 1;
+  return w <= 10 ? 'courtyard' : w <= 20 ? 'village' : w <= 29 ? 'forest' : w <= 40 ? 'peak' : w <= 50 ? 'frozen' : w <= 60 ? 'temple' : w <= 70 ? 'forge' : 'void';
 }
+export const BOSS_CYCLE = ['golden_knight', 'drake', 'shadow_dragon', 'behemoth', 'asc_warlord', 'shadow_dragon', 'asc_blade', 'behemoth'];
 export function bossForWave(n) {
   if (n % 10 !== 0) return null;
-  return ['golden_knight', 'drake', 'shadow_dragon', 'behemoth'][((n / 10) - 1) % 4];
+  return BOSS_CYCLE[((n / 10) - 1) % BOSS_CYCLE.length];
 }
+export const BOSS_EXTRA = { asc_warlord: ['berserker'], asc_blade: ['archmage', 'bladedancer'] };
 export function tierForWave(n) { return n < 8 ? 0 : n < 14 ? 1 : n < 20 ? 2 : n < 30 ? 3 : 4; }
 
 export class Director {
@@ -38,7 +40,8 @@ export class Director {
     if (bossKey) {
       this.boss = bossKey;
       // adds come with the boss
-      const adds = { golden_knight: ['skel_minion', 'soldier'], drake: ['bat', 'hound'], shadow_dragon: ['ghost_skull', 'demon'], behemoth: ['orc_skull', 'skel_warrior'] }[bossKey];
+      const adds = { golden_knight: ['skel_minion', 'soldier'], drake: ['bat', 'hound'], shadow_dragon: ['ghost_skull', 'demon'], behemoth: ['orc_skull', 'skel_warrior'],
+        asc_warlord: ['orc_skull', 'viking', 'thornback'], asc_blade: ['stalker', 'wraith', 'sage'] }[bossKey];
       for (let i = 0; i < 1 + Math.floor(n / 20); i++) this.queue.push({ key: rng.pick(adds), delay: 20 + i * 8 });
       this.maxAlive = 4;
       this.bossPending = { key: bossKey, level, at: 0.9 };
@@ -61,7 +64,8 @@ export class Director {
     if (this.event === 'swarm') for (let i = 0; i < 8 + Math.floor(n / 4); i++) this.queue.push({ key: 'bat', delay: 2 + i * 0.3 });
     if (this.event === 'goldrush') this.queue.push({ key: 'goblin', delay: 1.5, thief: true });
     const avail = Object.entries(ENEMIES).filter(([, d]) => d.wave <= n);
-    let eliteChance = clamp((n - 6) * 0.022, 0, 0.32) + run.eliteBonus;
+    let eliteChance = clamp((n - 6) * 0.022, 0, 0.32) + clamp((n - 30) * 0.012, 0, 0.18) + run.eliteBonus;
+    if (run.mode === 'casual') eliteChance *= 0.6;
     let t = 0.5;
     while (budget > 0) {
       const [k, d] = rng.weighted(avail, ([, d]) => d.w * (n - d.wave < 4 ? 1.8 : 1) * (d.cost > budget + 1 ? 0.05 : 1));
@@ -70,11 +74,28 @@ export class Director {
       budget -= d.cost * group;
       t += frand(0.4, 1.4) * Math.max(0.45, 1 - n * 0.02);
     }
+    // the Ascended: 1-3 per wave from wave 50
+    if (n >= 50 && run.mode !== 'casual') {
+      const keys = Object.keys(ASCENDED), cnt = 1 + (n >= 62 ? 1 : 0) + (n >= 75 ? 1 : 0);
+      for (let i = 0; i < cnt; i++) this.queue.push({ key: rng.pick(keys), delay: 5 + i * 12, ascended: true });
+    }
     // a guaranteed named elite every 5th wave
     if (n % 5 === 0) this.queue.push({ key: rng.weighted(avail.filter(([, d]) => d.cost >= 2), ([, d]) => d.w)[0], delay: t * 0.6, elite: true, named: true });
+    // past a certain size, more bodies just makes waves drag: trade the extra numbers for tougher enemies
+    const cap = Math.round(42 + Math.min(n, 90) * 0.18);
+    this.hpBoost = 1;
+    const normal = this.queue.filter((q) => !q.ascended && !q.named && !q.champion && !q.thief);
+    if (normal.length > cap) {
+      const r = normal.length / cap;
+      const drop = new Set(normal.filter((_, i) => i % Math.ceil(r * 10) >= 10).slice(0, normal.length - cap));
+      let i = 0; while (drop.size < normal.length - cap && i < normal.length) { drop.add(normal[normal.length - 1 - i]); i++; }
+      this.queue = this.queue.filter((q) => !drop.has(q));
+      this.hpBoost = 1 + (r - 1) * 0.4;
+      for (const q of this.queue) if (!q.ascended && rng() < Math.min(0.25, (r - 1) * 0.1)) q.elite = true;
+    }
     this.queue.sort((a, b) => a.delay - b.delay);
     this.total = this.queue.length;
-    this.maxAlive = Math.round(Math.min(7 + n * 0.6, g.quality === 'low' ? 15 : 22));
+    this.maxAlive = Math.round(Math.min(7 + n * 0.6, (g.quality === 'low' ? 15 : 22) + (n > 40 ? 3 : 0)));
   }
 
   spawnBoss(key, level) {
@@ -82,10 +103,14 @@ export class Director {
     if (!g.run || !this.active) return;
     const e = g.spawnEnemy(key, { x: 0, z: -g.world.radius * 0.6, mode: key === 'golden_knight' ? 'portal' : 'sky', level, boss: true });
     if (!e) return;
-    const loop = Math.floor((this.n - 1) / 40);
+    const loop = Math.floor((this.n - 1) / 80);
+    const lv = level.hp <= 10 ? 1 + (level.hp - 1) * 0.3 : 3.7 + (level.hp - 10) * 0.08;
+    const late = g.run.mode === 'casual' || this.n >= 50 ? 1 : 1 + Math.max(0, this.n - 30) * 0.02;
     // bosses scale gentler than regular enemies so fights stay ~1 minute
-    e.maxHp = e.def.hp * 0.7 * (1 + (level.hp - 1) * 0.3) * (1 + loop * 0.7) * g.run.modeMul * (g.run.mode === 'casual' ? 0.7 : 1); e.hp = e.maxHp;
-    e.dmgMul = 0.8 * (1 + (level.dmg - 1) * 0.6) * (1 + loop * 0.25) * (g.run.mode === 'casual' ? 0.7 : 1);
+    e.maxHp = e.def.hp * 0.7 * lv * (1 + loop * 0.9) * late * g.run.modeMul * (g.run.mode === 'casual' ? 0.7 : 1); e.hp = e.maxHp;
+    e.dmgMul = 0.8 * (1 + (level.dmg - 1) * 0.6) * (1 + loop * 0.35) * (g.run.mode === 'casual' ? 0.7 : 1);
+    if (loop > 0 || this.n > 40) e.atkSpeed = 1 + 0.12 * (loop + (this.n > 40 ? 1 : 0));
+    if (level.p50 > 1) { e.maxHp *= 1 + (level.p50 - 1) * 0.6; e.hp = e.maxHp; e.atkSpeed *= 1.1; } // wave 50+ bosses: brutal but beatable // returning bosses attack faster
     this.bossEnemy = e;
     g.ui.bossIntro(e); g.ui.bossHp(e);
     Audio2.sting('boss'); Audio2.roar(0.6);
@@ -107,9 +132,11 @@ export class Director {
       const q = this.queue.shift();
       const e = g.spawnFromGate(q.key, q);
       if (!e) continue;
+      if (this.hpBoost > 1 && !q.ascended) { e.maxHp *= this.hpBoost; e.hp = e.maxHp; }
       if (q.elite || q.named) e.makeElite(run.rng, q.named);
       if (q.elite || q.named) { e.hp = e.maxHp; g.ui.eliteSpawn(e); }
       if (q.thief) { e.thief = true; e.name = 'Treasure Goblin'; e.maxHp *= 3; e.hp = e.maxHp; e.speedMul *= 1.4; e.setTint(0x6a5200, 0.6); e.fleeT = 16; g.ui.eliteSpawn(e); }
+      if (q.ascended) g.empowerAscended(e);
       if (q.champion) { e.champion = true; e.makeElite(run.rng, true); e.hp = e.maxHp; g.ui.eliteSpawn(e); }
       break; // at most one per frame
     }
@@ -151,7 +178,7 @@ export class Director {
         e.bossPhase = 2; e.atkSpeed = 1.3; e.speedMul *= 1.2; e.setTint(0xff5a10, 0.5);
         g.ui.announce('THE GOLDEN KNIGHT IS ENRAGED', 'boss'); Audio2.roar(0.5); g.shake(0.6);
         g.combat.summon(e, 'skel_minion', 2);
-        g.hero.heal(g.hero.maxHp * 0.2); g.ui.toast('A second wind fills you (+20% health)');
+        g.hero.heal(g.hero.maxHp * 0.2, false); g.ui.toast('A second wind fills you (+20% health)');
       }
       if (e.bossPhase === 2 && Math.random() < dt * 4) g.fx.fire({ x: e.pos.x, y: 1.5, z: e.pos.z }, 1, 0.6);
       // he blocks a lot: you must parry or flank him
@@ -185,6 +212,15 @@ export class Director {
         }
       }
       if (e.bossPhase === 3 && Math.random() < dt * 0.4) g.combat.meteors(e, { count: 3, aoe: 2.4, dmg: 0.8 });
+    } else if (e.def.boss === 'asc') {
+      if (Math.random() < dt * 5) g.fx.add.emit(e.pos.x + frand(-1, 1), frand(0.5, 3), e.pos.z + frand(-1, 1), 0, 1, 0, 0.8, 0.4, 1, 0.3, 0.8);
+      if (e.bossPhase === 1 && hpK < 0.5) {
+        e.bossPhase = 2; e.atkSpeed *= 1.3; e.speedMul *= 1.2; e.setTint(0x8a10ff, 0.6);
+        g.ui.announce('THE ASCENDANT UNLEASHED', 'boss'); Audio2.roar(0.8); g.shake(0.8);
+        const extra = BOSS_EXTRA[e.key] || [];
+        for (const k of extra) { const a = Math.random() * 6.28; const m = g.spawnEnemy(k, { x: e.pos.x + Math.sin(a) * 5, z: e.pos.z + Math.cos(a) * 5, mode: 'portal' }); if (m) g.empowerAscended(m, 0.6); }
+      }
+      if (e.bossPhase === 2 && e.key === 'asc_warlord' && Math.random() < dt * 0.08) g.combat.warcry(e);
     } else if (e.def.boss === 'behemoth') {
       // freezing aura: the closer you are, the slower you move
       if (e.dist(hero) < 7) { hero.status.slow = 0.2; hero.status.slowAmt = 0.25; }

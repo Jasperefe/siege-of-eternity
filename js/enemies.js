@@ -99,6 +99,54 @@ export const ENEMIES = {
     attacks: [{ anim: 'DragonArmature|Dragon_Attack2', dur: 1.0, hit: 0.5, range: 14, kind: 'ranged', proj: 'fireball', speed: 15, aoe: 2.2, dmg: 1, cd: 2.4 }] },
 };
 
+// RPG Characters (FBX) clip names
+const RP = 'CharacterArmature|';
+const RANIM = { idle: RP + 'Idle', run: RP + 'Run', walk: RP + 'Walk', hit: RP + 'RecieveHit', death: RP + 'Death', roll: RP + 'Roll' };
+Object.assign(ENEMIES, {
+  thornback: { name: 'Thornback', model: CH + 'm_Cactoro.glb', h: 2.3, r: 0.75, hp: 240, dmg: 18, speed: 3.3, mass: 0.7, cost: 5, wave: 21, w: 3, mat: 'flesh', thorns: 0.08,
+    anims: MANIM, attacks: [{ anim: 'Punch', dur: 0.9, hit: 0.5, range: 2.6, arc: 110, dmg: 1, cd: 1.6 },
+      { anim: 'Weapon', dur: 1.3, hit: 0.6, range: 3.2, kind: 'slam', aoe: 3.2, dmg: 1.1, cd: 3.5, telegraph: true }] },
+  wraith: { name: 'Wraith', model: CH + 'm_Ghost.glb', h: 1.9, r: 0.55, hp: 90, dmg: 15, speed: 5.0, mass: 0.1, cost: 3, wave: 23, w: 3, mat: 'ghost', flying: 1.1, traits: ['phaser', 'blink'],
+    color: 0xb8c8ff, emissive: 0x101833,
+    anims: FANIM, attacks: [{ anim: 'Headbutt', dur: 0.8, hit: 0.55, range: 2.3, arc: 100, dmg: 1, cd: 1.4, lunge: 7 }] },
+  sage: { name: 'Battle Sage', model: 'rpg/Cleric.fbx', h: 1.9, r: 0.5, hp: 130, dmg: 12, speed: 3.4, mass: 0.3, cost: 5, wave: 24, w: 3, mat: 'flesh', ranged: [10, 16],
+    traits: ['healer'], elitePrio: true,
+    anims: { ...RANIM, run: RP + 'Run_Weapon', idle: RP + 'Idle_Weapon' },
+    attacks: [{ anim: RP + 'Spell1', dur: 1.1, hit: 0.55, range: 17, kind: 'ranged', proj: 'dark', speed: 13, dmg: 1, cd: 2.8 },
+      { anim: RP + 'Spell2', dur: 1.4, hit: 0.55, range: 30, kind: 'heal', dmg: 0, cd: 6 },
+      { anim: RP + 'Spell2', dur: 1.4, hit: 0.55, range: 30, kind: 'ward', dmg: 0, cd: 9 }] },
+  stalker: { name: 'Night Stalker', model: 'rpg/Rogue.fbx', h: 1.8, r: 0.45, hp: 95, dmg: 20, speed: 6.8, mass: 0.2, cost: 4, wave: 26, w: 3, mat: 'flesh', traits: ['dodger', 'stalker'],
+    anims: RANIM,
+    attacks: [{ anim: RP + 'Dagger_Attack', dur: 0.6, hit: 0.5, range: 2.1, arc: 100, dmg: 1, cd: 1.0 },
+      { anim: RP + 'Dagger_Attack2', dur: 0.9, hit: 0.55, range: 2.4, arc: 90, dmg: 1.8, cd: 3, unblockable: true, lunge: 5 }] },
+  sporelord: { name: 'Sporelord', model: CH + 'm_MushroomKing.glb', h: 2.6, r: 0.85, hp: 300, dmg: 16, speed: 2.8, mass: 0.75, cost: 6, wave: 27, w: 2, mat: 'flesh', ranged: [6, 11],
+    anims: MANIM, attacks: [{ anim: 'Wave', dur: 1.2, hit: 0.55, range: 13, kind: 'spores', dmg: 0, cd: 4.5 },
+      { anim: 'Punch', dur: 1.0, hit: 0.5, range: 2.8, arc: 120, dmg: 1, cd: 1.6 }] },
+});
+
+// The Ascended (wave 50+): Universal Animation Library clips, dressed in Ranger outfits, scale to the hero's power
+const UA = { idle: 'Sword_Idle', run: 'Jog_Fwd_Loop', walk: 'Walk_Loop', hit: 'Hit_Chest', death: 'Death01', roll: 'Roll', victory: 'Idle_Loop' };
+export const ASCENDED = {
+  bladedancer: { name: 'Ascended Bladedancer', model: 'asc/Elf_Female.glb', outfit: 'asc/Female_Ranger.glb', clips: 'ual', h: 2.15, r: 0.5, hp: 900, dmg: 24, speed: 6.8, mass: 0.6, mat: 'flesh', ascended: 'blade',
+    anims: UA, weapons: [['weapons/sword_1handed.glb', ['hand_r'], { length: 1.0, rot: [0, 0, 1.57] }]], traits: ['dodger'],
+    attacks: [{ anim: 'Sword_Regular_A', dur: 0.55, hit: 0.5, range: 2.6, arc: 130, dmg: 1, cd: 0.8 },
+      { anim: 'Sword_Regular_B', dur: 0.6, hit: 0.5, range: 2.6, arc: 130, dmg: 1, cd: 0.8 },
+      { anim: 'Sword_Dash', dur: 0.9, hit: 0.6, range: 14, reach: 2.8, kind: 'blinkstrike', arc: 140, dmg: 1.6, cd: 4.5, unblockable: true }] },
+  archmage: { name: 'Ascended Archmage', model: 'asc/Elf_Male.glb', outfit: 'asc/Male_Ranger.glb', clips: 'ual', h: 2.2, r: 0.5, hp: 800, dmg: 20, speed: 4.6, mass: 0.5, mat: 'flesh', ascended: 'mage',
+    anims: UA, weapons: [['weapons/staff.glb', ['hand_r'], { length: 1.6, rot: [0, 0, 1.57] }]], ranged: [9, 16], traits: ['blink'],
+    attacks: [{ anim: 'Spell_Simple_Shoot', dur: 0.9, hit: 0.5, range: 18, kind: 'ranged', proj: 'arcane', speed: 15, count: 3, spread: 0.3, homing: 2.5, dmg: 1, cd: 2.2 },
+      { anim: 'Spell_Simple_Enter', dur: 1.3, hit: 0.6, range: 25, kind: 'runes', dmg: 1.4, cd: 6 }] },
+  warlord: { name: 'Ascended Warlord', model: 'asc/Orc_Male.glb', outfit: 'asc/Male_Ranger.glb', clips: 'ual', h: 2.5, r: 0.7, hp: 1300, dmg: 30, speed: 4.6, mass: 0.85, mat: 'flesh', ascended: 'warlord',
+    anims: UA, weapons: [['weapons/axe_2handed.glb', ['hand_r'], { length: 1.4, rot: [0, 0, 1.57] }]], traits: ['blocker'],
+    attacks: [{ anim: 'Sword_Heavy_Combo', dur: 1.6, hit: 0.35, range: 3.0, arc: 150, dmg: 0.8, multi: 3, cd: 2.2 },
+      { anim: 'Shield_Dash', dur: 1.2, hit: 0.3, range: 12, kind: 'charge', dmg: 1.3, cd: 5, telegraph: true, unblockable: true, knock: 14 },
+      { anim: 'OverhandThrow', dur: 1.3, hit: 0.5, range: 40, kind: 'warcry', dmg: 0, cd: 12 }] },
+  berserker: { name: 'Ascended Berserker', model: 'asc/Orc_Female.glb', outfit: 'asc/Female_Ranger.glb', clips: 'ual', h: 2.35, r: 0.6, hp: 1100, dmg: 26, speed: 5.6, mass: 0.95, mat: 'flesh', ascended: 'berserk',
+    anims: UA, weapons: [['weapons/axe_1handed.glb', ['hand_r'], { length: 1.0, rot: [0, 0, 1.57] }]], unstoppable: true,
+    attacks: [{ anim: 'Sword_Regular_Combo', dur: 1.3, hit: 0.3, range: 2.6, arc: 140, dmg: 0.75, multi: 3, cd: 1.2 },
+      { anim: 'NinjaJump_Start', dur: 1.3, hit: 0.72, range: 13, kind: 'leap', aoe: 3.2, dmg: 1.3, cd: 4.5, telegraph: true, unblockable: true }] },
+};
+
 export const BOSSES = {
   golden_knight: { name: 'Sir Aurelius, the Golden Knight', title: 'Fallen Champion of the Crown', model: CH + 'kk_Knight.glb', clips: KK, h: 2.9, r: 0.9,
     hp: 2400, dmg: 24, speed: 5.4, mass: 0.92, mat: 'metal', boss: 'golden', color: 0xffd36b, emissive: 0x3a2400,
@@ -140,10 +188,13 @@ BOSSES.behemoth = { name: 'Gorrath the Frost Behemoth', title: 'The Mountain Tha
     { anim: 'Run', dur: 1.6, hit: 0.3, range: 16, kind: 'charge', dmg: 1.2, cd: 5, telegraph: true, unblockable: true, knock: 14 },
   ] };
 
-export const ALL_DEFS = { ...ENEMIES, ...BOSSES };
+BOSSES.asc_warlord = { ...ASCENDED.warlord, name: 'Korgath, the Ascended Warlord', title: 'He Who Broke the Sky', h: 3.4, r: 1.0, hp: 8000, boss: 'asc', color: 0xffc0a0, emissive: 0x330800 };
+BOSSES.asc_blade = { ...ASCENDED.bladedancer, name: 'Sylvara, Blade of the Void', title: 'Queen of the Ascended', h: 3.0, r: 0.8, hp: 8800, boss: 'asc', color: 0xd8c8ff, emissive: 0x200a33 };
+
+export const ALL_DEFS = { ...ENEMIES, ...BOSSES, ...ASCENDED };
 export function defAssets(key) {
   const d = ALL_DEFS[key];
-  return [d.model, ...(d.weapons || []).map((w) => w[0])];
+  return [d.model, ...(d.weapons || []).map((w) => w[0]), ...(d.outfit ? [d.outfit] : []), ...(d.clips === 'ual' ? ['asc/ual1.glb', 'asc/ual2.glb'] : [])];
 }
 
 // Elite modifiers
@@ -166,8 +217,12 @@ export class Enemy extends Actor {
     const def = ALL_DEFS[key];
     super(game, { radius: def.r });
     this.key = key; this.def = def; this.team = 'enemy';
-    const clips = def.clips === KK ? game.kkClips : game.assets.clips(def.model);
+    const clips = def.clips === KK ? game.kkClips : def.clips === 'ual' ? [...game.assets.clips('asc/ual1.glb'), ...game.assets.clips('asc/ual2.glb')] : game.assets.clips(def.model);
     this.build(def.model, clips, def.h, def.yaw || 0);
+    if (def.outfit) for (const m of game.assets.dress(this.model, def.outfit)) {
+      m.material = m.material.clone(); m.material.userData.baseEmissive = m.material.emissive?.clone(); m.material.userData.baseEI = m.material.emissiveIntensity ?? 1;
+      if (m.material.color) m.material.userData.baseColor = m.material.color.clone(); this.mats.push(m.material);
+    }
     for (const [p, bone, o] of def.weapons || []) this.attach(p, bone, o || {});
     if (def.darkTo) { // recolor near-black materials (FBX bats/dragons are very dark)
       for (const m of this.mats) if (m.color && m.color.r + m.color.g + m.color.b < 0.12) { m.color.set(def.darkTo); m.userData.baseColor = m.color.clone(); }
@@ -196,6 +251,7 @@ export class Enemy extends Actor {
     this.slot = Math.random() * Math.PI * 2; this.thinkT = 0; this.bossPhase = 1;
     this.lastHitBy = null; this.flying = d.flying || 0; this.hover = 0; this.t = Math.random() * 10;
     this.summoned = false; this.isBoss = !!d.boss;
+    this.wardT = 0; this.buffT = 0; this.cloaked = false; this.ascended = !!d.ascended;
     this.thief = false; this.champion = false; this.isSplit = false; this.fleeT = 0; this.vulnerable = false; this.resting = 0;
     return this;
   }
@@ -270,10 +326,18 @@ export class Enemy extends Actor {
       this.phaseT -= dt;
       if (this.phaseT <= 0) { this.phased = !this.phased; this.phaseT = this.phased ? 1.3 : frand(2.5, 4); this.setOpacity(this.phased ? 0.25 : 1); }
     }
+    if (this.wardT > 0) { this.wardT -= dt; if (this.wardT <= 0) { this.armor = this._armorBase || 0; this.setTint(this.elite ? 0x332200 : d.emissive || null); } }
+    if (this.buffT > 0) { this.buffT -= dt; if (this.buffT <= 0) { this.dmgMul /= 1.3; this.speedMul /= 1.2; this.setTint(this.elite ? 0x332200 : d.emissive || null); } }
+    if (d.traits?.includes('stalker') && hero) { // invisible while stalking, revealed up close or when attacking
+      const cl = this.state !== 'attack' && this.dist(hero) > 4 && this.hitstun <= 0;
+      if (cl !== !!this.cloaked) { this.cloaked = cl; this.setOpacity(cl ? 0.1 : 1); if (!cl) g.fx.smoke(this.pos, 6, 0.1); }
+    }
+    if (this.ascended && Math.random() < dt * 8) g.fx.add.emit(this.pos.x + frand(-0.5, 0.5), frand(0.3, 2.2), this.pos.z + frand(-0.5, 0.5), 0, 0.8, 0, 0.75, 0.35, 1, 0.18, 0.9);
+    if (d.ascended === 'berserk') { const r = 1 - this.hp / this.maxHp; this.atkSpeed = 1 + r * 0.8; }
     if (this.hitstun > 0) { this.hitstun -= dt; this.baseUpdate(dt); this.baseUpdatePos(dt); return; }
     if (this.guardT > 0) { this.guardT -= dt; if (this.guardT <= 0) this.play(d.anims.run); }
 
-    const speedK = this.speedMul * (st.slow > 0 ? 1 - st.slowAmt : 1) * (this.enrage && this.hp < this.maxHp * 0.5 ? 1.35 : 1);
+    const speedK = this.speedMul * (st.slow > 0 ? 1 - st.slowAmt : 1) * (this.enrage && this.hp < this.maxHp * 0.5 ? 1.35 : 1) * (d.ascended === 'berserk' ? 1 + (1 - this.hp / this.maxHp) * 0.6 : 1);
     this.skipThink = false;
     if (d.boss) g.bossAI(this, dt);
     if (this.state === 'attack') this.updateAttack(dt, speedK);
@@ -388,6 +452,8 @@ export class Enemy extends Actor {
     // later waves: feints & unblockable mixes (enemies "learn")
     this.unblockable = !!a.unblockable;
     if (this.tier >= 4 && !a.kind && g.run.adapt.parry > 0.55 && Math.random() < 0.3) this.unblockable = true;
+    if (this.isBoss && g.run.wave > 40 && Math.random() < 0.35) this.unblockable = true; // returning bosses: fewer parry windows
+    if (this.def.ascended && Math.random() < 0.3) this.unblockable = true;
     this.feint = this.tier >= 4 && !a.kind && g.run.adapt.dodge > 0.55 && Math.random() < 0.25;
     const dur = a.dur / this.atkSpeed;
     this.atkDur = dur;
@@ -398,6 +464,13 @@ export class Enemy extends Actor {
       if (a.kind === 'slam' || a.kind === 'spin') this.tele = g.fx.telegraph(_aheadOf(this, a.kind === 'spin' ? 0 : a.aoe * 0.55), a.aoe * this.root.scale.x, dur * a.hit, this.unblockable ? [1, 0.1, 0.05] : [1, 0.55, 0.1]);
       else if (a.kind === 'leap') { this.leapTo = { x: hero.pos.x, z: hero.pos.z }; this.tele = g.fx.telegraph(this.leapTo, a.aoe, dur * a.hit, [1, 0.1, 0.05]); }
       else if (a.kind === 'charge' || a.kind === 'dive') { this.chargeDir = this.angleTo(hero); }
+      if (a.kind === 'blinkstrike') { // vanish and reappear behind the hero
+        g.fx.smoke(this.pos, 10, 0.1); g.fx.magic({ x: this.pos.x, y: 1, z: this.pos.z }, [0.7, 0.4, 1], 14, 3);
+        const hb = hero.facing + Math.PI;
+        this.pos.x = hero.pos.x + Math.sin(hb) * 1.8; this.pos.z = hero.pos.z + Math.cos(hb) * 1.8;
+        g.world.resolve(this.pos, this.radius); this.facing = this.angleTo(hero); this.root.rotation.y = this.facing;
+        g.fx.magic({ x: this.pos.x, y: 1, z: this.pos.z }, [0.7, 0.4, 1], 14, 3); Audio2.magic(0.2, 1.4);
+      }
     }
     if (a.kind === 'leap' && !this.leapTo) this.leapTo = { x: hero.pos.x, z: hero.pos.z };
     if (this.def.mass >= 0.5 && Math.random() < 0.5) Audio2.growl(0.25, this.def.h > 2.8 ? 0.6 : 0.9, 0.6);
@@ -488,6 +561,10 @@ export class Enemy extends Actor {
       }
       case 'raise': g.combat.raiseDead(this); break;
       case 'heal': g.combat.healAllies(this); break;
+      case 'ward': g.combat.ward(this); break;
+      case 'spores': g.combat.spores(this, this.dmg); break;
+      case 'runes': g.combat.runes(this, this.dmg * a.dmg); break;
+      case 'warcry': g.combat.warcry(this); break;
       case 'summon': g.combat.summon(this, a.summon, a.count); break;
       case 'meteor': g.combat.meteors(this, a); break;
       default: this.applyHit(a, a.dmg);
@@ -497,7 +574,7 @@ export class Enemy extends Actor {
   applyHit(a, mul) {
     const g = this.game, hero = g.hero;
     if (a.kind !== 'charge' && a.kind !== 'dive') {
-      const reach = a.range * this.root.scale.x + hero.radius;
+      const reach = (a.reach || a.range) * this.root.scale.x + hero.radius;
       const dist = this.dist(hero), ad = Math.abs(angleDiff(this.facing, this.angleTo(hero)));
       if (this.def.mat !== 'goo' && dist < reach + 0.5) g.fx.slash(this.pos, this.facing, { radius: Math.min(reach, 4) * 0.9, arc: a.arc || 120, color: this.unblockable ? [1, 0.2, 0.1] : [0.9, 0.9, 1], dur: 0.14, tilt: 0.3, height: this.height * 0.55 });
       if (dist > reach || ad > (a.arc || 120) * Math.PI / 360) return;
@@ -512,6 +589,7 @@ export class Enemy extends Actor {
   }
 
   staggered(t) {
+    if (this.def.unstoppable) t = Math.min(t, 0.35); // can't be locked down
     this.state = 'chase'; this.atk = null; this.flyOverride = null; this.leapFrom = null;
     this.status.stagger = t; this.vel.set(0, 0, 0);
     if (this.def.anims.hit) this.play(this.def.anims.hit, { once: true, restart: true, fade: 0.05 });

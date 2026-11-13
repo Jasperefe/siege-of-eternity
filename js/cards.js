@@ -35,7 +35,7 @@ export const CARDS = {
   multishot: { name: 'Multishot', icon: '🏹', rarity: 'rare', max: 2, desc: () => 'Ranged attacks fire an extra projectile', apply: add('multishot', 1), only: 'ranged' },
   pierce: { name: 'Piercing Shots', icon: '📌', rarity: 'common', max: 2, desc: () => 'Projectiles pierce through more enemies', apply: add('pierce', 1), only: 'ranged' },
   reach: { name: 'Long Reach', icon: '📏', rarity: 'common', max: 2, desc: () => '+15% melee reach', apply: add('reach', 0.15), only: 'melee' },
-  mend: { name: 'Field Dressing', icon: '🩹', rarity: 'common', max: 99, desc: () => 'Restore 60% of your health', apply: (m, h) => { h && setTimeout(() => h.heal(h.maxHp * 0.6), 0); } },
+  mend: { name: 'Field Dressing', icon: '🩹', rarity: 'common', max: 99, desc: () => 'Restore 60% of your health', apply: (m, h) => { h && setTimeout(() => h.heal(h.maxHp * 0.6, false), 0); } },
   parryHeal: { name: 'Perfect Guard', icon: '✨', rarity: 'rare', max: 2, desc: () => 'Perfect parries heal you', apply: add('parryHeal', 1) },
   // boss-only legendaries
   crown: { name: 'Crown of Aurelius', icon: '👑', rarity: 'legendary', max: 1, desc: () => '+30% damage, +40 health, +10% crit', apply: (m) => { add('dmg', 0.3)(m); add('maxHp', 40)(m); add('crit', 0.1)(m); } },

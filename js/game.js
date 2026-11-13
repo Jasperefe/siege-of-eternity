@@ -5,11 +5,11 @@ import { Audio2 } from './audio.js';
 import { Platform } from './platform.js';
 import { Save } from './save.js';
 import { FX } from './fx.js';
-import { World, SCENES, SCENE_ASSETS } from './world.js';
+import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js';
 import { Hero, HEROES, heroAssets } from './hero.js';
 import { Enemy, ALL_DEFS, defAssets } from './enemies.js';
 import { Combat } from './combat.js';
-import { Director, sceneForWave, tierForWave, EVENTS } from './waves.js';
+import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js';
 import { rollCards, applyCard, DEALS, CARDS } from './cards.js';
 import { UI, UPGRADES, upgradeCost } from './ui.js';
 import { Input } from './input.js';
@@ -132,7 +132,7 @@ export class Game {
     await Assets.kkAnims(); // the rest of the animation library (skeletons, ranged heroes)
     this.firstLoaded = true;
     const rest = [];
-    for (const k of Object.keys(ALL_DEFS)) rest.push(...defAssets(k));
+    for (const k of Object.keys(ALL_DEFS)) if (!ALL_DEFS[k].ascended) rest.push(...defAssets(k));
     for (const k of Object.keys(HEROES)) rest.push(...heroAssets(k));
     for (const k of ['village', 'forest', 'peak']) rest.push(...SCENE_ASSETS[k]);
     const idle = async () => { while (this.state === 'play' || this.state === 'cleared' || this.state === 'dying') await new Promise((r) => setTimeout(r, 400)); };
@@ -143,6 +143,21 @@ export class Game {
     }
     for (const k of Object.keys(ALL_DEFS)) { await idle(); this.warmEnemy(k); await new Promise((r) => setTimeout(r, 30)); }
     this.bgLoaded = true;
+  }
+
+  // Late-game content (arenas 5-8, the Ascended) only downloads once a run gets far enough to need it
+  async lateLoad() {
+    if (this._lateLoading) return; this._lateLoading = true;
+    const list = [];
+    for (const k of ['frozen', 'temple', 'forge', 'void']) list.push(...SCENE_ASSETS[k]);
+    for (const k of Object.keys(ALL_DEFS)) if (ALL_DEFS[k].ascended) list.push(...defAssets(k));
+    const idle = async () => { while (this.state === 'play' || this.state === 'dying') await new Promise((r) => setTimeout(r, 400)); };
+    for (const p of [...new Set(list)]) {
+      if (Assets.has(p)) continue;
+      await idle();
+      try { await (p.endsWith('.hdr') ? this.world.envFor(p) : Assets.any(p)); } catch (e) { console.warn('late load', p, e); }
+    }
+    for (const k of Object.keys(ALL_DEFS)) if (ALL_DEFS[k].ascended) { await idle(); this.warmEnemy(k); }
   }
 
   // Build one enemy of this type ahead of time and compile its shaders, so its first appearance doesn't stutter
@@ -211,6 +226,13 @@ export class Game {
       const ok = await Platform.rewardedAd('revive');
       if (ok) this.revive(); else { this.ui.toast("The ad couldn't be shown. Revive with shards or try again."); this.showGameOver(true); }
     });
+    ui.on('adDouble', async () => {
+      const ok = await Platform.rewardedAd('double');
+      const run = this.run;
+      if (ok && !run.doubled) { run.doubled = true; this.save.shards += run.paid; this.lastResult.shards = run.paid * 2; Save.now(); Audio2.play('coins', { vol: 0.9 }); this.ui.toast('Soul Shards doubled!'); }
+      else if (!ok) this.ui.toast('No ad available right now. Try again later.');
+      this.showGameOver(true, true);
+    });
     ui.on('reviveShards', () => { const c = this.reviveCost(); if (this.save.shards < c) return; this.save.shards -= c; Save.write(); this.revive(); });
     ui.on('share', () => {
       const r = this.lastResult;
@@ -223,15 +245,49 @@ export class Game {
     ui.on('back', () => { if (this.state === 'paused') ui.showPause(); else origBack(); });
   }
 
+  // Ascended scale with the hero: tougher the stronger you are, and every hit takes a real chunk of health
+  empowerAscended(e, k = 1) {
+    const h = this.hero, st = h.stats;
+    const power = (st.dmg / h.def.dmg) * st.atkSpeed * (1 + st.crit * (st.critMul - 1)) / (1 + h.def.crit * 1);
+    e.maxHp *= Math.sqrt(Math.max(1, power)) * 0.5 * k; e.hp = e.maxHp;
+    e.dmgMul = Math.max(e.dmgMul, (h.maxHp * 0.12) / e.def.dmg) * (k < 1 ? 0.8 : 1);
+    e.name = e.def.name; e.ascended = true;
+    e.setTint(0x3a0a6a, 0.2);
+    this.ui.ascendedSpawn(e);
+    Audio2.sting('boss'); this.shake(0.3);
+  }
+
+  // cut a see-through hole in any scenery that hides the hero
+  updateHole() {
+    const h = this.hero;
+    if (!h || this.state === 'menu') { HOLE.uHoleR.value = 0; return; }
+    const v = this._hv || (this._hv = new THREE.Vector3());
+    v.set(h.pos.x, 1.0, h.pos.z);
+    this.camera.updateMatrixWorld();
+    const depth = v.clone().applyMatrix4(this.camera.matrixWorldInverse).z * -1;
+    v.project(this.camera);
+    const W = this.renderer.domElement.width, H = this.renderer.domElement.height;
+    HOLE.uHole.value.set((v.x * 0.5 + 0.5) * W, (v.y * 0.5 + 0.5) * H, depth);
+    HOLE.uHoleR.value = Math.min(W, H) * 0.24;
+  }
+
   // ========================= RUN FLOW =========================
   levelFor(n) {
     const m = this.run?.mode === 'nightmare' ? 9 : 0;
     const k = n - 1 + m;
+    // base curve is quadratic up to wave 40, then grows linearly (so late waves stay beatable);
+    // on top: a steeper ramp after wave 30, and the wave-50+ multiplier (1.5x -> 2x by wave 80)
+    const casual = this.run?.mode === 'casual';
+    const kq = Math.min(k, 39), base = 1 + 0.08 * kq + 0.0025 * kq * kq + Math.max(0, k - 39) * 0.165;
+    const late = Math.max(0, n - 30), loop2 = Math.max(0, n - 40);
+    const lateHp = casual ? 1 : 1 + late * 0.012 + loop2 * 0.01;
+    const lateDmg = casual ? 1 : 1 + late * 0.012 + loop2 * 0.012;
+    const p50 = casual || n < 50 ? 1 : 1.5 + Math.min(0.5, (n - 50) / 60) + Math.max(0, n - 80) * 0.01;
     return {
-      hp: (1 + 0.08 * k + 0.0025 * k * k) * (this.run?.enemyHp || 1) * (this.run?.mode === 'casual' ? 0.7 : 1),
-      dmg: (1 + 0.045 * k) * (this.run?.enemyDmg || 1) * (this.run?.mode === 'casual' ? 0.6 : 0.85),
+      hp: base * lateHp * p50 * (this.run?.enemyHp || 1) * (casual ? 0.7 : 1),
+      dmg: (1 + 0.045 * k) * lateDmg * (p50 > 1 ? 1 + (p50 - 1) * 0.6 : 1) * (this.run?.enemyDmg || 1) * (casual ? 0.6 : 0.85),
       speed: Math.min(1.35, 1 + 0.01 * k),
-      tier: tierForWave(n + m),
+      tier: tierForWave(n + m), p50,
     };
   }
 
@@ -248,7 +304,7 @@ export class Game {
       heroDef: HEROES[this.selHero], adapt: { parry: 0, dodge: 0 }, shardsWave: 1,
     };
     if (this.save.upg.revival) this.run.mods.secondWind = 1;
-    this.save.stats.runs++;
+    this.save.stats.runs++; this.lastResult = null; this.setDark(false);
     this.clearEnemies(); this.combat.clear(); this.fx.clear(); this.corpses = [];
     if (this.world.key !== 'courtyard') { this.ui.travel(SCENES.courtyard.title, 1); await this.world.build('courtyard'); }
     await this.ensure(heroAssets(this.selHero));
@@ -269,6 +325,7 @@ export class Game {
     this.director.start(n);
     // make sure every model this wave needs is loaded
     const keys = new Set(this.director.queue.map((q) => q.key)); if (this.director.boss) keys.add(this.director.boss);
+    for (const k of BOSS_EXTRA[this.director.boss] || []) keys.add(k);
     for (const q of ['bat', 'skel_minion', 'skel_warrior', 'ghost_skull', 'slime']) keys.add(q);
     const need = [...keys].flatMap(defAssets);
     if (!need.every((p) => Assets.has(p)) || !Assets.kkReady()) {
@@ -279,6 +336,11 @@ export class Game {
     for (const k of keys) this.warmEnemy(k);
     this.ui.hideScreens(); this.ui.setHud(true);
     this.ui.waveBanner(n, this.director.boss ? 'Boss wave' : SCENES[this.world.key].title);
+    this.setDark(n >= 50 && run.mode !== 'casual');
+    if (n >= 50 && !run.darkIntro && run.mode !== 'casual') {
+      run.darkIntro = true; Audio2.toll(); this.shake(0.6);
+      setTimeout(() => this.ui.announce('THE ASCENDED HAVE COME', 'ascended', 3.2), 1600);
+    }
     this.state = 'play';
     this.input.enabled = true;
     Platform.gameplayStart();
@@ -287,12 +349,13 @@ export class Game {
 
   onWaveCleared() {
     const run = this.run;
+    if (run.wave >= 33) this.lateLoad();
     this.state = 'cleared';
     run.score += 100 * run.wave;
     this.ui.announce('WAVE CLEARED', 'gold', 1.6);
     Audio2.sting('good');
     this.slowmo(0.8, 0.4);
-    this.hero.heal(this.hero.maxHp * 0.35);
+    this.hero.heal(this.hero.maxHp * (this.run.wave >= 40 ? 0.2 : this.run.wave >= 30 ? 0.27 : 0.35), false);
     setTimeout(() => {
       if (this.state !== 'cleared') return;
       Platform.gameplayStop();
@@ -365,11 +428,11 @@ export class Game {
   shardRerollCost() { return 15 + this.run.shardRerolls * 10; }
   reviveCost() { return 40 + this.run.wave * 5; }
 
-  showGameOver(fromAdFail = false) {
+  showGameOver(fromAdFail = false, keepOffers = false) {
     const run = this.run, s = this.save;
     if (!this.lastResult || !fromAdFail) {
       const shards = Math.round((run.wave * 2 + run.stats.kills / 8 + run.shardsBonus + run.stats.bosses * 25) * run.shardMul * (run.shardsWave || 1));
-      if (!run.paid) { s.shards += shards; run.paid = shards; }
+      if (!run.paid) { const add = Math.max(0, shards - (run.granted || 0)); s.shards += add; run.granted = (run.granted || 0) + add; run.paid = add; run.doubled = false; }
       const unlocks = [];
       const before = Object.fromEntries(Object.keys(HEROES).map((k) => [k, this.heroUnlocked(k)]));
       const newBest = run.wave > s.best.wave || run.score > s.best.score;
@@ -384,9 +447,11 @@ export class Game {
     this.state = 'dead';
     this.ui.setHud(false);
     // Rewarded revive is offered only every other run, never on every death (CrazyGames rule)
-    const adRevive = canRevive && !fromAdFail && Platform.hasRewarded() && (this.save.stats.runs % 2 === 1);
+    const adRevive = keepOffers ? this._lastAdRevive : canRevive && !fromAdFail && Platform.hasRewarded() && (this.save.stats.runs % 2 === 1);
+    this._lastAdRevive = adRevive;
+    const adDouble = Platform.hasRewarded() && run.paid > 0 && !run.doubled;
     if (canRevive) run.reviveOffered = true;
-    this.ui.showGameOver({ ...this.lastResult, canRevive, adRevive, reviveCost: this.reviveCost() });
+    this.ui.showGameOver({ ...this.lastResult, canRevive, adRevive, adDouble, reviveCost: this.reviveCost() });
   }
 
   revive() {
@@ -406,7 +471,10 @@ export class Game {
     if (quit && this.run && this.state !== 'dead') { this.hero.hp = 0; this.state = 'dying'; Platform.gameplayStop(); this.showGameOver(true); }
   }
 
+  setDark(on) { Audio2.setDark(on); document.body.classList.toggle('dark-age', on); }
+
   async toMenu() {
+    this.setDark(false);
     Platform.gameplayStop();
     this.run = null; this.state = 'menu';
     this.clearEnemies(); this.combat.clear(); this.fx.clear(); this.director.active = false;
@@ -629,6 +697,7 @@ export class Game {
       this.shakeAmt = Math.max(0, this.shakeAmt - raw * 2.2);
     }
     this.camera.lookAt(this.camTarget);
+    this.updateHole();
     if (this.camera.fov !== (this.portrait ? 52 : 45)) { this.camera.fov = this.portrait ? 52 : 45; this.camera.updateProjectionMatrix(); }
   }
 }
