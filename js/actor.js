@@ -76,7 +76,8 @@ export class Actor {
 
   action(name) {
     if (this.actions[name]) return this.actions[name];
-    const clip = this.clipMap[name];
+    let clip = this.clipMap[name];
+    if (!clip && Assets.kkMap[name]) { clip = Assets.kkMap[name]; this.clipMap[name] = clip; } // late-loaded KayKit clips
     if (!clip) return null;
     const a = this.mixer.clipAction(clip);
     this.actions[name] = a;

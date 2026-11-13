@@ -20,11 +20,11 @@
   <div id="hud" class="hidden">
     <div id="hud-left">
       <div id="hp"><div id="hp-fill"></div><span id="hp-text"></span></div>
-      <div id="wrath"><div id="wrath-fill"></div><span>WRATH</span></div>
+      <div id="wrath"><div id="wrath-fill"></div></div>
       <div id="dodges"></div>
     </div>
-    <div id="hud-mid"><div id="wave-label">WAVE <b id="wave-n">1</b></div><div id="wave-sub"></div></div>
-    <div id="hud-right"><div id="score">0</div><button id="pause-btn" aria-label="Pause">❚❚</button></div>
+    <div id="hud-mid"><div id="wave-label"><span id="wave-word">WAVE</span> <b id="wave-n">1</b></div><div id="wave-sub"></div></div>
+    <div id="hud-right"><div id="score">0</div><button id="pause-btn" aria-label="Pause"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg></button></div>
     <div id="streak"></div>
   </div>
   <div id="bossbar" class="hidden"><div id="boss-name"></div><div id="boss-track"><div id="boss-fill"></div></div><div id="boss-title"></div></div>
@@ -44,11 +44,16 @@
   <div id="toasts"></div>
   <div id="screens"></div>
   <div id="ad-overlay" class="hidden"></div>
+  <div id="busy" class="hidden"><div class="spin"></div><span id="busy-text">Preparing the battlefield…</span></div>
+  <div id="ad-wait" class="hidden"><div class="spin"></div></div>
 
   <div id="loading">
-    <div class="logo"><span class="l1">SIEGE</span><span class="l2">of</span><span class="l1">ETERNITY</span></div>
-    <div id="load-bar"><div id="load-bar-fill"></div></div>
-    <div id="load-text">Sharpening swords…</div>
+    <div class="load-inner">
+      <svg class="load-crest" viewBox="0 0 120 140" aria-hidden="true"><path d="M60 6 106 20v44c0 34-22 56-46 70C36 120 14 98 14 64V20L60 6Z" fill="#5e1418" stroke="#d4a548" stroke-width="5"/><g stroke="#d4a548" stroke-width="6" stroke-linecap="round"><path d="M38 102 82 42M82 102 38 42"/></g><circle cx="60" cy="72" r="9" fill="#d4a548"/></svg>
+      <div class="logo"><span class="l1">Siege</span><span class="l2">of Eternity</span></div>
+      <div id="load-bar"><div id="load-bar-fill"></div></div>
+      <div id="load-text">Loading the siege…</div>
+    </div>
   </div>
 </div>
 <script type="module" src="./js/main.js"></script>

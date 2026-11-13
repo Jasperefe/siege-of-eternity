@@ -386,7 +386,7 @@ export class Combat {
         if (e) { g.fx.lightning({ x: necro.pos.x, y: 2, z: necro.pos.z }, { x: c.x, y: 0.5, z: c.z }, [0.4, 1, 0.5]); n++; }
       }
     }
-    if (n) g.ui.toast('☠️ The Necromancer raised the dead!');
+    if (n) g.ui.toast('The Necromancer raised the dead!');
   }
 
   healAllies(src) {

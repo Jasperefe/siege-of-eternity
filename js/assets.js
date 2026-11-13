@@ -56,13 +56,18 @@ export const Assets = {
     return t;
   },
 
-  async kkAnims() {
-    if (kkClips) return kkClips;
-    const files = ['General', 'MovementBasic', 'MovementAdvanced', 'CombatMelee', 'CombatRanged', 'Special', 'Simulation'];
+  // Shared KayKit animation library. Loaded in two steps (core first, extras later) into ONE growing array,
+  // so actors built early still find clips that arrive later.
+  KK_CORE: ['General', 'MovementBasic', 'MovementAdvanced', 'CombatMelee'],
+  KK_ALL: ['General', 'MovementBasic', 'MovementAdvanced', 'CombatMelee', 'CombatRanged', 'Special', 'Simulation'],
+  kkMap: {},
+  async kkAnims(files = this.KK_ALL) {
+    kkClips ||= [];
     const res = await Promise.all(files.map((f) => this.gltf(`anims/kk_${f}.glb`)));
-    kkClips = res.flatMap((r) => r.clips);
+    for (const r of res) for (const c of r.clips) if (!this.kkMap[c.name]) { this.kkMap[c.name] = c; kkClips.push(c); }
     return kkClips;
   },
+  kkReady(files = this.KK_ALL) { return files.every((f) => this.has(`anims/kk_${f}.glb`)); },
 
   has(path) { return cache.has(path); },
   get(path) { return cache.get(path); },

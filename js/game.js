@@ -13,6 +13,7 @@ import { Director, sceneForWave, tierForWave, EVENTS } from './waves.js';
 import { rollCards, applyCard, DEALS, CARDS } from './cards.js';
 import { UI, UPGRADES, upgradeCost } from './ui.js';
 import { Input } from './input.js';
+import { t } from './i18n.js';
 import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js';
 
 const DEV = !!window.SOE_DEV;
@@ -48,13 +49,21 @@ export class Game {
     addEventListener('resize', () => this.resize()); this.resize();
     this.bindUI();
     // platform: ads and YouTube pause/resume
+    // From the moment an ad is requested: spinner, input blocked (CrazyGames/Poki rules)
+    Platform.onAdRequest = () => { this.ui.adWait(true); this._inputWas = this.input.enabled; this.input.enabled = false; };
+    Platform.onAdDone = () => { this.ui.adWait(false); this.input.keys?.clear?.(); this.input.enabled = this._inputWas ?? true; };
+    // Mute and freeze only when the ad actually starts
     Platform.onAdStart = () => { this.adPause = true; Audio2.setAdMute(true); this.ui.adOverlay(true); };
-    Platform.onAdEnd = () => { this.adPause = false; Audio2.setAdMute(false); this.ui.adOverlay(false); };
+    Platform.onAdEnd = () => { this.adPause = false; Audio2.setAdMute(false); this.ui.adOverlay(false); this._last = performance.now(); };
     Platform.onPause((why) => {
       if (why === 'platform') { this.sysPause = true; Audio2.pauseAll(true); Save.now(); }
-      else if (this.state === 'play') this.togglePause(true);
+      else { Audio2.pauseAll(true); if (this.state === 'play') this.togglePause(true); }
     });
-    Platform.onResume(() => { this.sysPause = false; Audio2.pauseAll(false); this._last = performance.now(); this.loop(); });
+    Platform.onResume((why) => {
+      if (why === 'platform') { this.sysPause = false; this._last = performance.now(); if (!this._looping) this.loop(); }
+      if (!this.sysPause) Audio2.pauseAll(false);
+    });
+    if (Platform.name === 'poki') document.body.classList.add('poki');
     this._tick = (t) => this.loop(t);
     if (DEV && location.search.includes('fast')) this._maxDt = 0.2;
   }
@@ -92,20 +101,21 @@ export class Game {
 
   // ========================= BOOT =========================
   async boot(progress) {
+    // Only what the menu needs loads before the game is "ready" (Poki: initial download < 8 MB).
+    // Enemies, sounds, other heroes and arenas stream in afterwards.
+    const lastHero = this.save.lastHero && this.heroUnlocked(this.save.lastHero) ? this.save.lastHero : 'knight';
     const core = [
-      ...['General', 'MovementBasic', 'MovementAdvanced', 'CombatMelee', 'CombatRanged', 'Special', 'Simulation'].map((f) => `anims/kk_${f}.glb`),
-      ...heroAssets('knight'), ...SCENE_ASSETS.courtyard,
-      ...['goblin', 'goblin_f', 'zombie', 'zombie_f', 'skel_minion', 'crypt_skel', 'soldier'].flatMap(defAssets),
-      'weapons/arrow_crossbow.glb', 'weapons/Skeleton_Arrow.glb', 'weapons/dagger.glb', 'env/n_rock_largeA.glb', 'weapons/sword_1handed.glb',
+      ...Assets.KK_CORE.map((f) => `anims/kk_${f}.glb`),
+      ...heroAssets(lastHero), ...SCENE_ASSETS.courtyard, 'weapons/sword_1handed.glb',
     ];
+    if (HEROES[lastHero].ranged) core.push('anims/kk_CombatRanged.glb');
     const uniq = [...new Set(core)];
     let done = 0;
-    await Promise.all(uniq.map((p) => (p.endsWith('.hdr') ? Assets.hdr(p) : Assets.any(p)).then(() => progress(++done / (uniq.length + 2)))));
-    this.kkClips = await Assets.kkAnims();
+    await Promise.all(uniq.map((p) => (p.endsWith('.hdr') ? Assets.hdr(p) : Assets.any(p)).then(() => progress(++done / (uniq.length + 1)))));
+    this.kkClips = await Assets.kkAnims(uniq.filter((p) => p.startsWith('anims/')).map((p) => p.slice(9, -4)));
     Audio2.init(); Audio2.setVolumes(this.save.settings.music, this.save.settings.sfx);
-    await Audio2.loadSfx('./assets/audio'); progress((uniq.length + 1) / (uniq.length + 2));
     await this.world.build('courtyard'); progress(1);
-    this.selHero = this.heroUnlocked(this.save.lastHero || 'knight') ? (this.save.lastHero || 'knight') : 'knight';
+    this.selHero = lastHero;
     this.spawnHero(this.selHero);
     this.state = 'menu';
     this._last = performance.now();
@@ -114,6 +124,13 @@ export class Game {
 
   // Load everything else quietly after the menu is up
   async backgroundLoad() {
+    // 1) what the first waves need, so "Defend the Castle" starts quickly
+    await Audio2.loadSfx('./assets/audio');
+    const first = [...['goblin', 'goblin_f', 'zombie', 'zombie_f', 'skel_minion', 'crypt_skel', 'soldier'].flatMap(defAssets),
+      'weapons/arrow_crossbow.glb', 'weapons/Skeleton_Arrow.glb', 'weapons/dagger.glb', 'env/n_rock_largeA.glb'];
+    await this.ensure(first);
+    await Assets.kkAnims(); // the rest of the animation library (skeletons, ranged heroes)
+    this.firstLoaded = true;
     const rest = [];
     for (const k of Object.keys(ALL_DEFS)) rest.push(...defAssets(k));
     for (const k of Object.keys(HEROES)) rest.push(...heroAssets(k));
@@ -166,7 +183,8 @@ export class Game {
     ui.on('noop', () => {});
     ui.on('pickHero', async (k) => {
       this.selHero = k; this.save.lastHero = k; Save.write();
-      await this.ensure(heroAssets(k)); this.spawnHero(k); ui.showHeroes();
+      ui.busy(true); await Promise.all([this.ensure(heroAssets(k)), Assets.kkAnims()]); ui.busy(false);
+      this.spawnHero(k); ui.showHeroes();
     });
     ui.on('pickMode', (k) => { this.mode = k; this.save.lastMode = k; Save.write(); ui.showMenu(); });
     ui.on('buyUp', (k) => {
@@ -177,26 +195,27 @@ export class Game {
     });
     ui.on('pickCard', (k) => this.pickCard(k));
     ui.on('reroll', () => { this.run.rerolls--; this.offerCards(true); });
-    ui.on('adReroll', async () => { this.run.adRerollUsed = true; const ok = await Platform.rewardedAd('reroll'); if (ok) this.offerCards(true); else { this.ui.toast('No ad available right now — try again later.'); this.offerCards(false, true); } });
-    ui.on('dealYes', () => { this.pendingDeal.apply(this.run.mods, this.run); this.hero.recalc(); this.ui.toast(`${this.pendingDeal.icon} ${this.pendingDeal.name} accepted`); Audio2.sting('bad'); this.afterDeal(); });
+    ui.on('shardReroll', () => { const c = this.shardRerollCost(); if (this.save.shards < c) return; this.save.shards -= c; Save.write(); this.run.shardRerolls++; this.offerCards(true); });
+    ui.on('adReroll', async () => { this.run.adRerollUsed = true; const ok = await Platform.rewardedAd('reroll'); if (ok) this.offerCards(true); else { this.ui.toast('No ad available right now. Try again later.'); this.offerCards(false, true); } });
+    ui.on('dealYes', () => { this.pendingDeal.apply(this.run.mods, this.run); this.hero.recalc(); this.ui.toast('{name} accepted', { name: `${this.pendingDeal.icon} ${t(this.pendingDeal.name)}` }); Audio2.sting('bad'); this.afterDeal(); });
     ui.on('dealNo', () => this.afterDeal());
     ui.on('resume', () => this.togglePause(false));
     ui.on('howtoPause', () => ui.showHowTo('pauseBack'));
     ui.on('settingsPause', () => { ui.showSettings(); this.screens_back = 'pause'; });
     ui.on('pauseBack', () => ui.showPause());
     ui.on('quit', () => { this.togglePause(false, true); this.endRun(true); });
-    ui.on('retry', async () => { await Platform.midgameAd(); this.startRun(this.run?.daily); });
+    ui.on('retry', async () => { if (!this.run?.reviveOffered) await Platform.midgameAd(); this.startRun(this.run?.daily); });
     ui.on('menu', () => this.toMenu());
     ui.on('reviveAd', async () => {
       this.ui.hideScreens();
       const ok = await Platform.rewardedAd('revive');
-      if (ok) this.revive(); else { this.ui.toast('The ad could not be shown — revive with shards or try again.'); this.showGameOver(true); }
+      if (ok) this.revive(); else { this.ui.toast("The ad couldn't be shown. Revive with shards or try again."); this.showGameOver(true); }
     });
     ui.on('reviveShards', () => { const c = this.reviveCost(); if (this.save.shards < c) return; this.save.shards -= c; Save.write(); this.revive(); });
     ui.on('share', () => {
       const r = this.lastResult;
       const txt = `⚔️ Siege of Eternity — Daily Siege ${new Date().toISOString().slice(0, 10)}\nI survived to wave ${r.wave} with ${r.kills} kills and ${r.parries} perfect parries! Can you beat me?`;
-      navigator.clipboard?.writeText(txt).then(() => this.ui.toast('📋 Copied!')).catch(() => this.ui.toast(txt));
+      navigator.clipboard?.writeText(txt).then(() => this.ui.toast('Copied')).catch(() => this.ui.toast(txt));
     });
     ui.on('beginRun', () => { this.save.flags.tutorial = true; Save.write(); this.ui.hideScreens(); this.beginWave(1); });
     // settings "Back" while paused returns to the pause menu
@@ -225,7 +244,7 @@ export class Game {
       daily, mode, rng: makeRng(seed), wave: 0, score: 0, mods: {}, cards: {}, synergies: new Set(),
       stats: { kills: 0, parries: 0, dodges: 0, dealt: 0, taken: 0, executions: 0, events: 0, bosses: 0 },
       modeMul: mode === 'nightmare' ? 1.25 : 1, enemyHp: 1, enemyDmg: 1, shardMul: mode === 'nightmare' ? 1.5 : mode === 'eternity' ? 2 : mode === 'casual' ? 0.75 : 1,
-      eliteBonus: 0, shardsBonus: 0, revived: false, rerolls: this.save.upg.fortune || 0, adRerollUsed: false,
+      eliteBonus: 0, shardsBonus: 0, revived: false, rerolls: this.save.upg.fortune || 0, adRerollUsed: false, shardRerolls: 0, reviveOffered: false,
       heroDef: HEROES[this.selHero], adapt: { parry: 0, dodge: 0 }, shardsWave: 1,
     };
     if (this.save.upg.revival) this.run.mods.secondWind = 1;
@@ -251,10 +270,15 @@ export class Game {
     // make sure every model this wave needs is loaded
     const keys = new Set(this.director.queue.map((q) => q.key)); if (this.director.boss) keys.add(this.director.boss);
     for (const q of ['bat', 'skel_minion', 'skel_warrior', 'ghost_skull', 'slime']) keys.add(q);
-    await this.ensure([...keys].flatMap(defAssets));
+    const need = [...keys].flatMap(defAssets);
+    if (!need.every((p) => Assets.has(p)) || !Assets.kkReady()) {
+      this.ui.busy(true);
+      await Promise.all([this.ensure(need), Assets.kkAnims()]);
+      this.ui.busy(false);
+    }
     for (const k of keys) this.warmEnemy(k);
     this.ui.hideScreens(); this.ui.setHud(true);
-    this.ui.waveBanner(n, this.director.boss ? 'BOSS WAVE' : SCENES[this.world.key].title);
+    this.ui.waveBanner(n, this.director.boss ? 'Boss wave' : SCENES[this.world.key].title);
     this.state = 'play';
     this.input.enabled = true;
     Platform.gameplayStart();
@@ -287,9 +311,9 @@ export class Game {
     }
     this.state = 'cards';
     this.ui.showCards(this.cardOffer, {
-      title: boss ? 'A Legendary Reward' : `Wave ${run.wave} survived`,
-      sub: boss ? 'The boss has fallen. Claim its power.' : 'Choose a blessing for the next wave',
-      rerolls: run.rerolls, adReroll: !run.adRerollUsed && Platform.hasRewarded() && !boss, legendary: boss,
+      title: boss ? t('A legendary reward') : t('Wave {n} survived', { n: run.wave }),
+      sub: boss ? t('The boss has fallen. Claim its power.') : t('Choose a blessing for the next wave'),
+      rerolls: run.rerolls, shardReroll: run.rerolls > 0 ? 0 : this.shardRerollCost(), adReroll: !run.adRerollUsed && Platform.hasRewarded() && !boss, legendary: boss,
     });
   }
 
@@ -338,6 +362,7 @@ export class Game {
     setTimeout(() => { Platform.gameplayStop(); this.input.enabled = false; this.showGameOver(); }, 1800);
   }
 
+  shardRerollCost() { return 15 + this.run.shardRerolls * 10; }
   reviveCost() { return 40 + this.run.wave * 5; }
 
   showGameOver(fromAdFail = false) {
@@ -349,7 +374,7 @@ export class Game {
       const before = Object.fromEntries(Object.keys(HEROES).map((k) => [k, this.heroUnlocked(k)]));
       const newBest = run.wave > s.best.wave || run.score > s.best.score;
       s.best.wave = Math.max(s.best.wave, run.wave); s.best.score = Math.max(s.best.score, run.score);
-      for (const k of Object.keys(HEROES)) if (!before[k] && this.heroUnlocked(k)) { s.heroes[k] = true; unlocks.push(`New hero: ${HEROES[k].icon} ${HEROES[k].name}`); }
+      for (const k of Object.keys(HEROES)) if (!before[k] && this.heroUnlocked(k)) { s.heroes[k] = true; unlocks.push(t('New hero: {name}', { name: `${HEROES[k].icon} ${t(HEROES[k].name)}` })); }
       if (run.daily) { if (s.daily.key !== this.dailyKey) s.daily = { key: this.dailyKey, best: 0 }; s.daily.best = Math.max(s.daily.best, run.wave); }
       Save.now();
       Platform.sendScore(s.best.score);
@@ -358,7 +383,10 @@ export class Game {
     const canRevive = !run.revived && run.mode !== 'eternity' && run.wave >= 3;
     this.state = 'dead';
     this.ui.setHud(false);
-    this.ui.showGameOver({ ...this.lastResult, canRevive, adRevive: canRevive && Platform.hasRewarded() && !fromAdFail, reviveCost: this.reviveCost() });
+    // Rewarded revive is offered only every other run, never on every death (CrazyGames rule)
+    const adRevive = canRevive && !fromAdFail && Platform.hasRewarded() && (this.save.stats.runs % 2 === 1);
+    if (canRevive) run.reviveOffered = true;
+    this.ui.showGameOver({ ...this.lastResult, canRevive, adRevive, reviveCost: this.reviveCost() });
   }
 
   revive() {
@@ -404,7 +432,7 @@ export class Game {
     const run = this.run, s = this.save;
     run.stats.bosses++;
     this.ui.bossDone();
-    this.ui.announce(`${e.def.name.split(',')[0].toUpperCase()} DEFEATED`, 'gold', 2.5);
+    this.ui.announce('{name} DEFEATED', 'gold', 2.5, { name: t(e.def.name).split(',')[0].toUpperCase() });
     this.slowmo(2, 0.2); this.shake(1);
     this.fx.explosion(e.pos, 6, [1, 0.8, 0.3]);
     Audio2.sting('good');
@@ -421,7 +449,7 @@ export class Game {
   }
   onThiefCaught(e) {
     this.run.shardsBonus += 15; this.run.score += 1500;
-    this.ui.announce('TREASURE RECOVERED! +15 💎', 'gold'); Audio2.play('coins', { vol: 0.9 });
+    this.ui.announce('TREASURE RECOVERED! +15 shards', 'gold'); Audio2.play('coins', { vol: 0.9 });
     this.fx.sparks({ x: e.pos.x, y: 1, z: e.pos.z }, 40, [1, 0.85, 0.2], 8);
   }
   onChampionDefeated() { this.run.shardsBonus += 10; this.ui.announce('CHAMPION SLAIN', 'gold'); }
@@ -490,7 +518,7 @@ export class Game {
     const now = this.time;
     if (now - (this._lastKill || -9) < 2.5) this._streak++; else this._streak = 1;
     this._lastKill = now;
-    const names = { 2: 'DOUBLE KILL', 3: 'TRIPLE KILL', 5: 'MASSACRE', 8: 'UNSTOPPABLE', 12: 'GODLIKE', 20: 'ETERNAL' };
+    const names = { 2: 'DOUBLE KILL', 3: 'TRIPLE KILL', 5: 'MASSACRE', 8: 'UNSTOPPABLE', 12: 'LEGENDARY', 20: 'ETERNAL' };
     if (names[this._streak]) { this.ui.streak(names[this._streak]); this.run.score += this._streak * 50; if (this._streak >= 5) Audio2.sting('good'); }
   }
   music(name) { if (!Audio2.ctx) return; Audio2.playMusic(name, `./assets/music/${name}.mp3`); }
@@ -583,7 +611,7 @@ export class Game {
     let tx = h.pos.x + h.vel.x * 0.12, tz = h.pos.z + h.vel.z * 0.12;
     if (this.focus && this.focusT > 0) { this.focusT -= raw; tx = (h.pos.x + this.focus.pos.x) / 2; tz = (h.pos.z + this.focus.pos.z) / 2; }
     const boss = this.director.bossEnemy && !this.director.bossEnemy.dead && this.state !== 'menu' ? this.director.bossEnemy : null;
-    const zoom = this.portrait ? 1.3 : 1;
+    const zoom = (this.portrait ? 1.3 : 1) * (DEV ? +(new URLSearchParams(location.search).get('camzoom') || 1) : 1);
     let bigK = 1;
     if (boss) { // frame the hero and the boss together
       const d = h.dist(boss);
@@ -591,7 +619,8 @@ export class Game {
       bigK = 1 + clamp((d - 6) / 22, 0, 0.55) + (boss.def.h > 5 ? 0.15 : 0);
     }
     this._bigK = damp(this._bigK || 1, bigK, 2, raw); bigK = this._bigK;
-    const off = new THREE.Vector3(0, 12.5 * zoom * bigK, 10 * zoom * bigK);
+    const tilt = DEV ? +(new URLSearchParams(location.search).get('camtilt') || 1) : 1;
+    const off = new THREE.Vector3(0, 12.5 * zoom * bigK * tilt, 10 * zoom * bigK);
     this.camTarget.x = damp(this.camTarget.x, tx, 7, raw); this.camTarget.z = damp(this.camTarget.z, tz, 7, raw); this.camTarget.y = 1;
     this.camera.position.set(this.camTarget.x + off.x, off.y, this.camTarget.z + off.z);
     if (this.shakeAmt > 0) {

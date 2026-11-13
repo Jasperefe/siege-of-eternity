@@ -117,7 +117,7 @@ export class Director {
     // treasure goblin runs away from the hero and escapes after a while
     for (const e of g.enemies) if (e.thief && !e.dead) {
       e.fleeT -= dt;
-      if (e.fleeT <= 0) { g.ui.toast('💨 The treasure goblin escaped!'); g.fx.smoke(e.pos, 12, 0.1); e.dead = true; e.removed = true; e.root.visible = false; }
+      if (e.fleeT <= 0) { g.ui.toast('The treasure goblin escaped!'); g.fx.smoke(e.pos, 12, 0.1); e.dead = true; e.removed = true; e.root.visible = false; }
     }
     // hazards
     if (this.n >= 10 || this.event === 'barrage') {
@@ -151,7 +151,7 @@ export class Director {
         e.bossPhase = 2; e.atkSpeed = 1.3; e.speedMul *= 1.2; e.setTint(0xff5a10, 0.5);
         g.ui.announce('THE GOLDEN KNIGHT IS ENRAGED', 'boss'); Audio2.roar(0.5); g.shake(0.6);
         g.combat.summon(e, 'skel_minion', 2);
-        g.hero.heal(g.hero.maxHp * 0.2); g.ui.toast('💚 A second wind fills you (+20% health)');
+        g.hero.heal(g.hero.maxHp * 0.2); g.ui.toast('A second wind fills you (+20% health)');
       }
       if (e.bossPhase === 2 && Math.random() < dt * 4) g.fx.fire({ x: e.pos.x, y: 1.5, z: e.pos.z }, 1, 0.6);
       // he blocks a lot: you must parry or flank him

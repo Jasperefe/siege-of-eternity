@@ -36,7 +36,7 @@ export const CARDS = {
   pierce: { name: 'Piercing Shots', icon: '📌', rarity: 'common', max: 2, desc: () => 'Projectiles pierce through more enemies', apply: add('pierce', 1), only: 'ranged' },
   reach: { name: 'Long Reach', icon: '📏', rarity: 'common', max: 2, desc: () => '+15% melee reach', apply: add('reach', 0.15), only: 'melee' },
   mend: { name: 'Field Dressing', icon: '🩹', rarity: 'common', max: 99, desc: () => 'Restore 60% of your health', apply: (m, h) => { h && setTimeout(() => h.heal(h.maxHp * 0.6), 0); } },
-  parryHeal: { name: 'Divine Guard', icon: '✨', rarity: 'rare', max: 2, desc: () => 'Perfect parries heal you', apply: add('parryHeal', 1) },
+  parryHeal: { name: 'Perfect Guard', icon: '✨', rarity: 'rare', max: 2, desc: () => 'Perfect parries heal you', apply: add('parryHeal', 1) },
   // boss-only legendaries
   crown: { name: 'Crown of Aurelius', icon: '👑', rarity: 'legendary', max: 1, desc: () => '+30% damage, +40 health, +10% crit', apply: (m) => { add('dmg', 0.3)(m); add('maxHp', 40)(m); add('crit', 0.1)(m); } },
   emberheart: { name: 'Emberheart', icon: '❤️‍🔥', rarity: 'legendary', max: 1, desc: () => 'Fire + lightning on every hit. Wrath lasts 4s longer', apply: (m) => { add('burn', 1)(m); add('chain', 1)(m); add('wrathDur', 4)(m); } },
@@ -95,7 +95,7 @@ export function applyCard(run, key, hero) {
 // Cursed shrine deals: power for a price
 export const DEALS = [
   { name: 'Glass Cannon', icon: '🗡️💔', good: '+50% damage', bad: '-30% max health', apply: (m) => { m.dmg = (m.dmg || 0) + 0.5; m.hpMul = (m.hpMul || 1) * 0.7; } },
-  { name: 'Blood Pact', icon: '🩸', good: '+1 legendary-tier lifesteal (kills heal a lot)', bad: 'Enemies have +30% health', apply: (m, run) => { m.lifesteal = (m.lifesteal || 0) + 3; run.enemyHp *= 1.3; } },
+  { name: 'Blood Pact', icon: '🩸', good: 'Kills heal a lot more', bad: 'Enemies have +30% health', apply: (m, run) => { m.lifesteal = (m.lifesteal || 0) + 3; run.enemyHp *= 1.3; } },
   { name: 'Haste of the Damned', icon: '⚡💀', good: '+30% attack & move speed', bad: 'You take +25% damage', apply: (m) => { m.atkSpeed = (m.atkSpeed || 0) + 0.3; m.speed = (m.speed || 0) + 0.3; m.dmgTaken = (m.dmgTaken || 1) * 1.25; } },
   { name: 'Greed', icon: '💰', good: 'Double Soul Shards this run', bad: 'Enemies deal +20% damage', apply: (m, run) => { run.shardMul *= 2; run.enemyDmg *= 1.2; } },
   { name: 'Hunter\'s Mark', icon: '🎯', good: '+20% crit chance, +60% crit damage', bad: 'More elites will hunt you', apply: (m, run) => { m.crit = (m.crit || 0) + 0.2; m.critMul = (m.critMul || 0) + 0.6; run.eliteBonus += 0.15; } },

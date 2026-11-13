@@ -7,22 +7,22 @@ export const ARENA_R = 19;
 
 export const SCENES = {
   courtyard: {
-    title: 'Castle Courtyard', sky: 'sky/dawn.hdr', skyInt: 0.9, envInt: 0.55, bgBlur: 0.0,
+    title: 'Castle Courtyard', sky: 'sky/dawn.hdr', skyInt: 0.9, envInt: 0.55, bgBlur: 0.06,
     fog: [0x8a8f9e, 34, 100], sun: { color: 0xffd7a8, int: 2.1, pos: [-30, 40, 18] }, hemi: [0xbfd0ff, 0x4a3f35, 0.45],
     ground: 'cobble', exposure: 0.85, music: 'battle',
   },
   village: {
-    title: 'Burning Village', sky: 'sky/day.hdr', skyInt: 0.75, envInt: 0.7, bgBlur: 0.0,
+    title: 'Burning Village', sky: 'sky/day.hdr', skyInt: 0.75, envInt: 0.7, bgBlur: 0.06,
     fog: [0x6b5348, 30, 95], sun: { color: 0xffb070, int: 2.4, pos: [35, 30, -20] }, hemi: [0xffd0a0, 0x3a2a20, 0.55],
     ground: 'dirt', exposure: 0.95, music: 'battle',
   },
   forest: {
-    title: 'The Dark Forest', sky: 'sky/night.hdr', skyInt: 1.6, envInt: 0.9, bgBlur: 0.0,
+    title: 'The Dark Forest', sky: 'sky/night.hdr', skyInt: 1.6, envInt: 0.9, bgBlur: 0.04,
     fog: [0x101a26, 22, 75], sun: { color: 0xa8bcff, int: 2.0, pos: [20, 40, 25] }, hemi: [0x6a80c0, 0x1a2018, 0.8],
     ground: 'grass', exposure: 1.35, music: 'battle', lantern: 2.2,
   },
   peak: {
-    title: "Dragon's Peak", sky: 'sky/night.hdr', skyInt: 0.9, envInt: 0.6, bgBlur: 0.0,
+    title: "Dragon's Peak", sky: 'sky/night.hdr', skyInt: 0.9, envInt: 0.6, bgBlur: 0.04,
     fog: [0x1e0a08, 26, 85], sun: { color: 0xffa070, int: 2.0, pos: [-25, 35, -25] }, hemi: [0x9a6a60, 0x1a0805, 0.7],
     ground: 'lava', exposure: 1.15, music: 'boss', lantern: 1.4,
   },
