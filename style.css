@@ -369,3 +369,11 @@ body.dark-age #darkveil { opacity: 1; }
 #ended p { color: #fff; font-size: 20px; margin: 0 0 16px; }
 #ended .badge { display: inline-block; padding: 8px 18px; border: 2px solid #ffd36b; color: #ffd36b; font-size: 22px; font-weight: 700; }
 @keyframes endedIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* story ending */
+.ending { text-align: center; max-width: 560px; margin: 0 auto; }
+.ending h1 { font-size: clamp(38px, 8vw, 72px); margin: 4px 0 12px; }
+.ending .end-line { margin: 6px 0; font-size: 18px; font-style: italic; }
+.ending .end-badge { display: inline-block; margin: 14px 0; padding: 6px 16px; border: 2px solid #ffd36b; color: #ffd36b; font-weight: 700; font-size: 20px; }
+.ending .end-credits { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 18px; opacity: .8; }
+.ending .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }

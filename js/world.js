@@ -1,7 +1,7 @@
 // Arenas ("scenes") built from the Kenney castle/nature kits + Quaternius buildings
 import * as THREE from 'three';
-import { Assets, measure } from './assets.js?v=202611160946';
-import { frand, makeRng } from './util.js?v=202611160946';
+import { Assets, measure } from './assets.js?v=202611161136';
+import { frand, makeRng } from './util.js?v=202611161136';
 
 export const ARENA_R = 19;
 
@@ -46,8 +46,20 @@ export const SCENES = {
     fog: [0x1c0a30, 24, 75], sun: { color: 0xd8b8ff, int: 2.4, pos: [20, 40, -15] }, hemi: [0xa080e0, 0x1a0a2a, 1.1],
     ground: 'void', exposure: 1.4, music: 'boss', lantern: 2.0,
   },
+  // waves 81-90: Vex's domain
+  hall: {
+    title: 'Hall of Shadows', sky: 'sky/night.hdr', skyInt: 0.25, envInt: 0.5, bgBlur: 0.12,
+    fog: [0x1a1030, 24, 80], sun: { color: 0xc8b0ff, int: 2.3, pos: [18, 40, 22] }, hemi: [0xa890e0, 0x1a1028, 1.5],
+    ground: 'tiles', groundTint: 0x8a80a8, exposure: 1.65, music: 'boss', lantern: 1.6,
+  },
+  // waves 91-100: the gate the Warden has always guarded
+  gate: {
+    title: 'The Eternal Gate', sky: 'sky/night.hdr', skyInt: 0.45, envInt: 0.55, bgBlur: 0.06,
+    fog: [0x3a0a06, 26, 90], sun: { color: 0xffb070, int: 2.6, pos: [-22, 32, -30] }, hemi: [0xff9a70, 0x2a0805, 0.9],
+    ground: 'cobble', groundTint: 0x9a6a5a, exposure: 1.15, music: 'boss', lantern: 1.8,
+  },
 };
-export const SCENE_ORDER = ['courtyard', 'village', 'forest', 'peak', 'frozen', 'temple', 'forge', 'void'];
+export const SCENE_ORDER = ['courtyard', 'village', 'forest', 'peak', 'frozen', 'temple', 'forge', 'void', 'hall', 'gate'];
 
 // Assets each scene needs (so they can be preloaded per scene)
 export const SCENE_ASSETS = {
@@ -69,6 +81,11 @@ export const SCENE_ASSETS = {
     'env/d_chest_gold.glb', 'env/d_coin_stack_large.glb', 'env/d_sword_shield_broken.glb', 'env/d_candle_triple.glb', 'sky/night.hdr'],
   forge: ['env/n_cliff_large_rock.glb', 'env/n_cliff_block_rock.glb', 'env/n_rock_tallE.glb', 'env/d_column.glb', 'env/d_barrier_column.glb', 'env/d_rubble_large.glb', 'env/c_rocks-large.glb', 'sky/night.hdr'],
   void: ['env/n_rock_tallE.glb', 'env/n_cliff_block_rock.glb', 'env/n_rock_largeD.glb', 'env/d_pillar_decorated.glb', 'env/d_column.glb', 'env/d_rubble_large.glb', 'sky/night.hdr'],
+  hall: ['env/d_wall.glb', 'env/d_wall_arched.glb', 'env/d_wall_broken.glb', 'env/d_wall_doorway.glb', 'env/d_pillar.glb', 'env/d_pillar_decorated.glb', 'env/d_column.glb',
+    'env/d_banner_thin_red.glb', 'env/d_rubble_large.glb', 'env/d_rubble_half.glb', 'env/d_candle_triple.glb', 'env/d_sword_shield_broken.glb', 'env/n_rock_tallE.glb', 'sky/night.hdr'],
+  gate: ['env/c_wall.glb', 'env/c_gate.glb', 'env/c_metal-gate.glb', 'env/c_tower-hexagon-base.glb', 'env/c_tower-hexagon-mid.glb', 'env/c_tower-hexagon-roof.glb',
+    'env/c_flag-wide.glb', 'env/c_flag-banner-long.glb', 'env/c_siege-trebuchet-demolished.glb', 'env/c_siege-catapult-demolished.glb', 'env/c_rocks-large.glb',
+    'env/n_pot_large.glb', 'env/n_cliff_large_rock.glb', 'env/n_rock_tallE.glb', 'sky/night.hdr'],
 };
 
 // ---------- procedural ground textures ----------
@@ -275,6 +292,7 @@ export class World {
     g.renderer.toneMappingExposure = def.exposure;
     if (!this.groundTex[def.ground]) this.groundTex[def.ground] = groundTexture(def.ground);
     const gt = this.groundTex[def.ground];
+    this.groundMat.color.set(def.groundTint || 0xffffff);
     const rep = { cobble: 34, lava: 9, magma: 9, void: 8, tiles: 26, snow: 14 }[def.ground] || 22; gt.map.repeat.set(rep, rep); this.groundMat.map = gt.map;
     if (gt.emissive) { gt.emissive.repeat.set(rep, rep); this.groundMat.emissiveMap = gt.emissive; this.groundMat.emissive.set(def.ground === 'void' ? 0xb080ff : 0xff5a1a); this.groundMat.emissiveIntensity = def.ground === 'magma' ? 1.3 : 0.9; }
     else { this.groundMat.emissiveMap = null; this.groundMat.emissive.set(0x000000); }
@@ -561,6 +579,90 @@ export class World {
     [[0, -R + 2], [R - 2, 0], [-R + 2, 0], [0, R - 2]].forEach(([x, z], i) => { this._torch(i, x, 2.5, z, 2.8, 0xa060ff); this.fires.push({ x, y: 0.3, z, size: 0.8, cold: true, void: true }); });
   }
 
+  // ---------------- Hall of Shadows (waves 81-90) ----------------
+  build_hall() {
+    const R = this.radius = ARENA_R;
+    const SH = 0x5a5070, DK = 0x3a3450;
+    const N = 28, RW = R + 1.6, L = 2 * RW * Math.sin(Math.PI / N);
+    const walls = [], arched = [], broken = [], doors = [], banners = [];
+    const doorIdx = new Set([3, 10, 17, 24]);
+    for (let i = 0; i < N; i++) {
+      const a = (i + 0.5) / N * Math.PI * 2, x = Math.sin(a) * RW, z = Math.cos(a) * RW, sc = L / 4;
+      if (doorIdx.has(i)) { doors.push(M4(x, 0, z, a, sc, 1.5, 1)); this.spawns.push({ x: Math.sin(a) * (R - 0.8), z: Math.cos(a) * (R - 0.8), yaw: a + Math.PI }); continue; }
+      (i % 3 === 1 ? broken : i % 2 ? arched : walls).push(M4(x, 0, z, a, sc, 1.5 + (i % 4) * 0.12, 1));
+      if (i % 3 === 0) banners.push(M4(Math.sin(a) * (RW - 0.4), 1.6, Math.cos(a) * (RW - 0.4), a + Math.PI, 1.7));
+    }
+    this.root.add(instanced('env/d_wall.glb', walls, SH)); this.root.add(instanced('env/d_wall_arched.glb', arched, SH));
+    this.root.add(instanced('env/d_wall_broken.glb', broken, DK)); this.root.add(instanced('env/d_wall_doorway.glb', doors, DK));
+    this.root.add(instanced('env/d_banner_thin_red.glb', banners, 0x7a3ac8));
+    // a ring of tall pillars: cover, and somewhere for the shades to hide
+    const pil = [], pil2 = [], broke = [];
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * 6.28 + 0.39, d = i % 2 ? 12.5 : 9, x = Math.sin(a) * d, z = Math.cos(a) * d;
+      if (i === 5) { broke.push(M4(x, 0, z, a + 1.2, 1.6, 0.7, 1.6)); this.colliders.push({ x, z, r: 0.9 }); continue; }
+      (i % 2 ? pil : pil2).push(M4(x, 0, z, a, 1.4, 1.5, 1.4)); this.colliders.push({ x, z, r: 0.85 });
+    }
+    this.root.add(instanced('env/d_pillar.glb', pil, SH)); this.root.add(instanced('env/d_pillar_decorated.glb', pil2, SH)); this.root.add(instanced('env/d_column.glb', broke, DK));
+    const rng = makeRng(909);
+    const rub = [], rub2 = [], cols = [], spires = [];
+    for (let i = 0; i < 16; i++) { const a = rng() * 6.28, d = R - 2 + rng() * 2; (rng() < 0.5 ? rub : rub2).push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 1.2 + rng())); }
+    for (let i = 0; i < 26; i++) { const a = rng() * 6.28, d = RW + 4 + rng() * 22; cols.push(M4(Math.sin(a) * d, -0.5 - rng() * 2, Math.cos(a) * d, rng() * 6, 2.2 + rng() * 2, 3 + rng() * 5, 2.2 + rng() * 2)); }
+    for (let i = 0; i < 30; i++) { const a = rng() * 6.28, d = RW + 12 + rng() * 30; spires.push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 8 + rng() * 14)); }
+    this.root.add(instanced('env/d_rubble_large.glb', rub, DK)); this.root.add(instanced('env/d_rubble_half.glb', rub2, DK));
+    this.root.add(instanced('env/d_column.glb', cols, 0x4a4060)); this.root.add(instanced('env/n_rock_tallE.glb', spires, 0x2a2238));
+    this._place('env/d_sword_shield_broken.glb', -3, 5, 0.6, null, 0, 1.5);
+    [[2.5, -4], [-4.5, -2], [4, 3]].forEach(([x, z]) => this._place('env/d_candle_triple.glb', x, z, rng() * 6, null, 0, 1.3));
+    // cold purple fires on the pillars and at the doors
+    [[0, -R + 2], [R - 2, 0], [-R + 2, 0], [0, R - 2]].forEach(([x, z], i) => { this._torch(i, x, 2.6, z, 2.6, 0x9a50ff); this.fires.push({ x, y: 0.3, z, size: 0.9, cold: true, void: true }); });
+  }
+
+  // ---------------- The Eternal Gate (waves 91-100) ----------------
+  build_gate() {
+    const R = this.radius = ARENA_R + 1;
+    const ST = 0x8a6a5e, GOLD = 0xd8a040;
+    const N = 34, RW = R + 2.2, L = 2 * RW * Math.sin(Math.PI / N) + 0.15;
+    const walls = [], gates = [], tb = [], tm = [], tr = [], flags = [];
+    const gateIdx = new Set([8, 25, 3, 30]);
+    for (let i = 0; i < N; i++) {
+      const a = (i + 0.5) / N * Math.PI * 2, x = Math.sin(a) * RW, z = Math.cos(a) * RW;
+      if (i >= 15 && i <= 19) continue; // the Eternal Gate itself stands here
+      if (gateIdx.has(i)) { gates.push(M4(x, 0, z, a, L, 4.4, 4)); this.spawns.push({ x: Math.sin(a) * (R - 0.8), z: Math.cos(a) * (R - 0.8), yaw: a + Math.PI }); }
+      else walls.push(M4(x, 0, z, a, L, 4.6, 4));
+      if (i % 4 === 1) flags.push(M4(Math.sin(a) * (RW - 0.6), 2.6, Math.cos(a) * (RW - 0.6), a + Math.PI, 2.8));
+    }
+    this.root.add(instanced('env/c_wall.glb', walls, ST)); this.root.add(instanced('env/c_gate.glb', gates, ST));
+    this.root.add(instanced('env/c_flag-banner-long.glb', flags, 0xb02010));
+    // the gate: a giant iron gate between two golden-roofed towers
+    const ga = Math.PI, gx = Math.sin(ga) * (RW + 1), gz = Math.cos(ga) * (RW + 1);
+    this.root.add(instanced('env/c_metal-gate.glb', [M4(gx, 0, gz, ga + Math.PI / 2, 13, 15, 6)], 0x3a2a24));
+    this.root.add(instanced('env/c_gate.glb', [M4(gx, 0, gz - 1.2, ga + Math.PI / 2, 18, 16, 8)], ST));
+    const S = 6;
+    for (const sd of [-1, 1]) {
+      const tx = gx + sd * 11, tz = gz - 1.5;
+      tb.push(M4(tx, 0, tz, ga, S)); tm.push(M4(tx, 1.31 * S, tz, ga, S)); tm.push(M4(tx, (1.31 + 0.46) * S, tz, ga, S)); tr.push(M4(tx, (1.31 + 0.92) * S, tz, ga, S));
+      this.fires.push({ x: tx, y: (1.31 + 0.92) * S + 0.5, z: tz, size: 1.4 });
+    }
+    this.root.add(instanced('env/c_tower-hexagon-base.glb', tb, ST)); this.root.add(instanced('env/c_tower-hexagon-mid.glb', tm, ST));
+    this.root.add(instanced('env/c_tower-hexagon-roof.glb', tr, GOLD));
+    this.root.add(instanced('env/c_flag-wide.glb', [M4(gx - 6.5, 6, gz + 0.8, ga, 5), M4(gx + 6.5, 6, gz + 0.8, ga, 5)], 0xb02010));
+    // golden braziers (cover) inside the arena
+    [[7, 6], [-7, 6], [8, -5], [-8, -5]].forEach(([x, z], i) => {
+      this._place('env/n_pot_large.glb', x, z, i, 1.3); this.colliders.push({ x, z, r: 0.9 }); this.fires.push({ x, y: 1.35, z, size: 1.4 });
+      this._torch(i, x, 2.4, z, 2.8, 0xffa040);
+    });
+    // a battlefield outside: wrecked siege engines, burning, under cliffs
+    const rng = makeRng(1001);
+    [['env/c_siege-trebuchet-demolished.glb', 0.9, 3], ['env/c_siege-catapult-demolished.glb', 2.0, 2.6], ['env/c_siege-catapult-demolished.glb', 4.4, 2.6], ['env/c_siege-trebuchet-demolished.glb', 5.4, 3]].forEach(([p, a, sc]) => {
+      const x = Math.sin(a) * (RW + 8), z = Math.cos(a) * (RW + 8); this._place(p, x, z, a, null, 0, sc); this.fires.push({ x, y: 1, z, size: 1.6 });
+    });
+    const cliffs = [], spikes = [], rub = [];
+    for (let i = 0; i < 22; i++) { const a = i / 22 * 6.28 + rng() * 0.2, d = RW + 18 + rng() * 8; if (Math.abs(Math.atan2(Math.sin(a - ga), Math.cos(a - ga))) < 0.5) continue; cliffs.push(M4(Math.sin(a) * d, -0.5, Math.cos(a) * d, rng() * 6, 9 + rng() * 6, 8 + rng() * 10, 9 + rng() * 6)); }
+    for (let i = 0; i < 24; i++) { const a = rng() * 6.28, d = RW + 12 + rng() * 30; spikes.push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 7 + rng() * 10)); }
+    for (let i = 0; i < 14; i++) { const a = rng() * 6.28, d = R - 2.5 + rng() * 2; rub.push(M4(Math.sin(a) * d, 0, Math.cos(a) * d, rng() * 6, 1.4 + rng())); }
+    this.root.add(instanced('env/n_cliff_large_rock.glb', cliffs, 0x5a3028)); this.root.add(instanced('env/n_rock_tallE.glb', spikes, 0x3a1a14));
+    this.root.add(instanced('env/c_rocks-large.glb', rub, 0x6a4a40));
+  }
+
   // keep actors inside arena and out of obstacles
   resolve(p, r) {
     const R = this.effectiveRadius - r;
@@ -585,6 +687,14 @@ export class World {
     if (this.key === 'forest' && Math.random() < dt * 6) { // fireflies
       const a = Math.random() * 6.28, d = Math.random() * this.radius;
       this.game.fx.add.emit(Math.sin(a) * d, frand(0.5, 3), Math.cos(a) * d, frand(-0.3, 0.3), frand(-0.1, 0.3), frand(-0.3, 0.3), 0.7, 1, 0.4, 0.12, 3, 0, 0);
+    }
+    if (this.key === 'hall' && Math.random() < dt * 14) { // drifting shadow wisps
+      const a = Math.random() * 6.28, d = Math.random() * this.radius;
+      this.game.fx.add.emit(Math.sin(a) * d, frand(0.2, 1.2), Math.cos(a) * d, frand(-0.4, 0.4), frand(0.1, 0.5), frand(-0.4, 0.4), 0.45, 0.2, 0.8, frand(0.3, 0.6), 2.5, 0, 0);
+    }
+    if (this.key === 'gate' && Math.random() < dt * 24) { // falling embers and ash
+      const hp = this.game.hero?.pos || { x: 0, z: 0 }, a = Math.random() * 6.28, d = Math.random() * 18;
+      this.game.fx.add.emit(hp.x + Math.sin(a) * d, frand(6, 11), hp.z + Math.cos(a) * d, frand(-0.5, 0.5), -1.2, frand(-0.5, 0.5), 1, frand(0.35, 0.6), 0.15, 0.09, 6, 0, 0);
     }
     if (this.key === 'frozen' && Math.random() < dt * 40) { // snowfall
       const hp = this.game.hero?.pos || { x: 0, z: 0 }, a = Math.random() * 6.28, d = Math.random() * 18;

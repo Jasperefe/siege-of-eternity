@@ -1,22 +1,22 @@
 // Game orchestration: loop, camera, run flow, waves, platform hooks
 import * as THREE from 'three';
-import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611160946';
+import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611161136';
 if (window.SOE_DEV) window.__fb = { hitProp };
-import { Assets } from './assets.js?v=202611160946';
-import { Audio2 } from './audio.js?v=202611160946';
-import { Platform } from './platform.js?v=202611160946';
-import { Save } from './save.js?v=202611160946';
-import { FX } from './fx.js?v=202611160946';
-import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611160946';
-import { Hero, HEROES, heroAssets } from './hero.js?v=202611160946';
-import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611160946';
-import { Combat } from './combat.js?v=202611160946';
-import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611160946';
-import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611160946';
-import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611160946';
-import { Input } from './input.js?v=202611160946';
-import { t } from './i18n.js?v=202611160946';
-import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611160946';
+import { Assets } from './assets.js?v=202611161136';
+import { Audio2 } from './audio.js?v=202611161136';
+import { Platform } from './platform.js?v=202611161136';
+import { Save } from './save.js?v=202611161136';
+import { FX } from './fx.js?v=202611161136';
+import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611161136';
+import { Hero, HEROES, heroAssets } from './hero.js?v=202611161136';
+import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611161136';
+import { Combat } from './combat.js?v=202611161136';
+import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611161136';
+import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611161136';
+import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611161136';
+import { Input } from './input.js?v=202611161136';
+import { t } from './i18n.js?v=202611161136';
+import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611161136';
 
 const DEV = !!window.SOE_DEV;
 export const DEV_EVENT = DEV ? new URLSearchParams(location.search).get('event') : null; // test cheats (?god, ?wave=N, ?fast, ?overview) only in dev builds
@@ -86,11 +86,6 @@ export class Game {
     if (st.done() || c.t > 14) { c.i++; this.ui.coach(null); if (c.i < steps.length) Audio2.play('coins', { vol: 0.25 }); }
   }
 
-  batterySaver() {
-    const s = this.save.settings.battery ?? 'auto';
-    return s === 'on' || (s === 'auto' && this.input.isTouch);
-  }
-
   heroUnlocked(k) {
     const u = HEROES[k].unlock; if (!u) return true;
     if (this.save.heroes[k]) return true;
@@ -110,6 +105,7 @@ export class Game {
       this.scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true)); });
     }
     this.world.sun.shadow.mapSize.set(2048, 2048);
+    if (this.fx.add) this.fx.add.thin = this.fx.norm.thin = this.quality === 'low' ? (this.input.isTouch ? 0.55 : 0.4) : 0; // phones: lighter effects, less heat
     this.resize();
   }
 
@@ -183,7 +179,7 @@ export class Game {
   async lateLoad() {
     if (this._lateLoading) return; this._lateLoading = true;
     const list = [];
-    for (const k of ['frozen', 'temple', 'forge', 'void']) list.push(...SCENE_ASSETS[k]);
+    for (const k of ['frozen', 'temple', 'forge', 'void', 'hall', 'gate']) list.push(...SCENE_ASSETS[k]);
     for (const k of Object.keys(ALL_DEFS)) if (ALL_DEFS[k].ascended) list.push(...defAssets(k));
     const idle = async () => { while (this.state === 'play' || this.state === 'dying') await new Promise((r) => setTimeout(r, 400)); };
     for (const p of [...new Set(list)]) { if (!Assets.has(p)) try { await fetch('./assets/' + p); } catch (e) {} } // warm the HTTP cache
@@ -274,6 +270,8 @@ export class Game {
       const txt = `⚔️ Siege of Eternity — Daily Siege ${new Date().toISOString().slice(0, 10)}\nI survived to wave ${r.wave} with ${r.kills} kills and ${r.parries} perfect parries! Can you beat me?`;
       navigator.clipboard?.writeText(txt).then(() => this.ui.toast('Copied')).catch(() => this.ui.toast(txt));
     });
+    ui.on('endless', () => { this.run.endless = true; this.ui.hideScreens(); this.ui.toast('Endless Siege begins. How far can you go?'); this.offerCards(); });
+    ui.on('victoryMenu', () => { this.run.victory = true; this.state = 'dying'; this.showGameOver(true); });
     ui.on('beginRun', () => { this.save.flags.tutorial = true; Save.write(); this.ui.hideScreens(); this.beginWave(1); });
     // settings "Back" while paused returns to the pause menu
     const origBack = ui.handlers.back;
@@ -393,6 +391,10 @@ export class Game {
     Audio2.sting('good');
     this.slowmo(0.8, 0.4);
     this.hero.heal(this.hero.maxHp * (this.run.wave >= 40 ? 0.2 : this.run.wave >= 30 ? 0.27 : 0.35), false);
+    if (run.storyDone && !run.endless) { // the King has fallen: the story ends here, then the player chooses
+      setTimeout(() => { if (this.state !== 'cleared') return; Platform.gameplayStop(); this.input.enabled = false; this.state = 'ending'; this.ui.showEnding(); }, 7800);
+      return;
+    }
     setTimeout(() => {
       if (this.state !== 'cleared') return;
       Platform.gameplayStop();
@@ -479,10 +481,10 @@ export class Game {
       if (run.daily) { if (s.daily.key !== this.dailyKey) s.daily = { key: this.dailyKey, best: 0 }; s.daily.best = Math.max(s.daily.best, run.wave); }
       Save.now();
       Platform.sendScore(s.best.score);
-      this.lastResult = { wave: run.wave, score: run.score, kills: run.stats.kills, parries: run.stats.parries, shards: run.paid, unlocks, newBest, sceneTitle: SCENES[this.world.key].title, daily: run.daily,
+      this.lastResult = { wave: run.wave, score: run.score, kills: run.stats.kills, parries: run.stats.parries, shards: run.paid, unlocks, newBest, sceneTitle: SCENES[this.world.key].title, daily: run.daily, victory: !!run.victory,
         quote: run.wave === 100 && this.director.bossEnemy && !this.director.bossEnemy.dead ? STORY.kingLose : null };
     }
-    const canRevive = !run.revived && run.mode !== 'eternity' && run.wave >= 3;
+    const canRevive = !run.victory && !run.revived && run.mode !== 'eternity' && run.wave >= 3;
     this.state = 'dead';
     this.ui.setHud(false);
     // Rewarded revive is offered only every other run, never on every death (CrazyGames rule)
@@ -550,7 +552,7 @@ export class Game {
     if (e.def.boss === 'dragon') { s.flags.dragon = true; s.modes.nightmare = true; s.modes.eternity = true; }
     if (e.def.boss === 'behemoth') s.flags.behemoth = true;
     if (e.def.boss === 'vex') { s.flags.vex = true; removeEyes(e); }
-    if (e.def.boss === 'king') { removeEyes(e); onKingDefeated(this, e); }
+    if (e.def.boss === 'king') { removeEyes(e); onKingDefeated(this, e); run.storyDone = true; }
     // the rest of the wave's adds flee
     for (const o of this.enemies) if (!o.dead && o !== e) this.combat.kill(o, null, {});
     this.director.queue = [];
@@ -637,9 +639,9 @@ export class Game {
     if (this.sysPause) return; // YouTube onPause: stop everything (rendering included)
     cancelAnimationFrame(this._raf);
     this._raf = requestAnimationFrame(this._tick);
-    // battery saver: phones (often 120 Hz) and every menu/card screen run at ~30 fps; this keeps devices cool
+    // battles run at the screen's rate (up to 60 fps); menus, cards, pause and game over at ~30 fps to keep devices cool
     const now = performance.now(), busy = this.state === 'play' || this.state === 'cleared' || this.state === 'dying';
-    const cap = (!busy || this.batterySaver()) ? 30 : 0;
+    const cap = busy ? 60 : 30;
     if (cap && now - (this._lastDraw || 0) < 1000 / cap - 3) return;
     this._lastDraw = now;
     try { this.frame(); } catch (err) {

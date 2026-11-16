@@ -1,10 +1,10 @@
 // Wave director: budgets, difficulty curve, events, elites, hazards and boss AI
-import { ENEMIES, ASCENDED } from './enemies.js?v=202611160946';
-import { setupVex, setupKing, vexAI, kingAI, speak, STORY } from './finalbosses.js?v=202611160946';
-import { t } from './i18n.js?v=202611160946';
+import { ENEMIES, ASCENDED } from './enemies.js?v=202611161136';
+import { setupVex, setupKing, vexAI, kingAI, speak, STORY } from './finalbosses.js?v=202611161136';
+import { t } from './i18n.js?v=202611161136';
 const STORY_ON_SPAWN = { golden: STORY.golden, dragon: STORY.dragon, asc: STORY.warlord };
-import { Audio2 } from './audio.js?v=202611160946';
-import { angleDiff, clamp, frand } from './util.js?v=202611160946';
+import { Audio2 } from './audio.js?v=202611161136';
+import { angleDiff, clamp, frand } from './util.js?v=202611161136';
 
 export const EVENTS = {
   bloodmoon: { name: 'Blood Moon', icon: '🩸', desc: 'Enemies are faster and stronger — but drop double shards', min: 6 },
@@ -18,8 +18,9 @@ export const EVENTS = {
 
 // 80-wave cycle: courtyard 1-10, village 11-20, forest 21-29, peak 30-40, frozen 41-50, temple 51-60, forge 61-70, void 71-80
 export function sceneForWave(n) {
-  const w = ((n - 1) % 80) + 1;
-  return w <= 10 ? 'courtyard' : w <= 20 ? 'village' : w <= 29 ? 'forest' : w <= 40 ? 'peak' : w <= 50 ? 'frozen' : w <= 60 ? 'temple' : w <= 70 ? 'forge' : 'void';
+  // ten arenas, never repeated before wave 100; Endless Siege then cycles through them again
+  const w = ((n - 1) % 100) + 1;
+  return w <= 10 ? 'courtyard' : w <= 20 ? 'village' : w <= 29 ? 'forest' : w <= 40 ? 'peak' : w <= 50 ? 'frozen' : w <= 60 ? 'temple' : w <= 70 ? 'forge' : w <= 80 ? 'void' : w <= 90 ? 'hall' : 'gate';
 }
 export const BOSS_CYCLE = ['golden_knight', 'drake', 'shadow_dragon', 'behemoth', 'asc_warlord', 'shadow_dragon', 'asc_blade', 'behemoth'];
 export function bossForWave(n) {

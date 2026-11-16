@@ -1,6 +1,6 @@
 // Visual effects: particles, slash arcs, rings/telegraphs, projectiles visuals, floating numbers
 import * as THREE from 'three';
-import { frand } from './util.js?v=202611160946';
+import { frand } from './util.js?v=202611161136';
 
 // ---------- GPU particle system (Points) ----------
 const PVERT = `
@@ -48,6 +48,7 @@ class Particles {
   }
   emit(x, y, z, vx, vy, vz, r, g, b, size, life, grav = 0, drag = 0, grow = 0) {
     if (this.n >= this.max) return;
+    if (this.thin && Math.random() < this.thin) return; // phones: fewer particles, same look
     const i = this.n++;
     const i3 = i * 3;
     this.pos[i3] = x; this.pos[i3 + 1] = y; this.pos[i3 + 2] = z;

@@ -1,10 +1,11 @@
 // DOM user interface: banner title screen, forged-iron buttons, HUD, cards, announcements, nameplates
 import * as THREE from 'three';
-import { HEROES, HERO_ORDER } from './hero.js?v=202611160946';
-import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611160946';
-import { Audio2 } from './audio.js?v=202611160946';
-import { Platform } from './platform.js?v=202611160946';
-import { t } from './i18n.js?v=202611160946';
+import { HEROES, HERO_ORDER } from './hero.js?v=202611161136';
+import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611161136';
+import { Audio2 } from './audio.js?v=202611161136';
+import { Platform } from './platform.js?v=202611161136';
+import { Save } from './save.js?v=202611161136';
+import { t } from './i18n.js?v=202611161136';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -165,7 +166,6 @@ export class UI {
       <label><span>${T('Music')}</span><input type="range" min="0" max="1" step="0.05" value="${st.music}" id="set-music"></label>
       <label><span>${T('Effects')}</span><input type="range" min="0" max="1" step="0.05" value="${st.sfx}" id="set-sfx"></label>
       <label><span>${T('Graphics')}</span><select id="set-q"><option value="auto">${T('Auto')}</option><option value="high">${T('High')}</option><option value="low">${T('Low (faster)')}</option></select></label>
-      <label><span>${T('Battery saver')}</span><select id="set-bat"><option value="auto">${T('Auto')}</option><option value="on">${T('On')}</option><option value="off">${T('Off')}</option></select></label>
       <label><span>${T('Screen shake')}</span><input type="checkbox" id="set-shake" ${st.shake ? 'checked' : ''}></label>
     </div>${ytNote}
     <div class="credits"><b>${T('Music')}</b>
@@ -175,11 +175,11 @@ export class UI {
       <b>${T('Art and sound')}</b>
       <p>Kenney (kenney.nl), Kay Lousberg (KayKit), Quaternius — CC0 / free licences</p>
     </div>`, 'settings');
-    $('#set-q').value = st.quality; $('#set-bat').value = st.battery || 'auto';
+    $('#set-q').value = st.quality;
     const apply = () => {
-      st.music = +$('#set-music').value; st.sfx = +$('#set-sfx').value; st.shake = $('#set-shake').checked; st.battery = $('#set-bat').value;
+      st.music = +$('#set-music').value; st.sfx = +$('#set-sfx').value; st.shake = $('#set-shake').checked;
       const q = $('#set-q').value; if (q !== st.quality) { st.quality = q; this.game.applyQuality(); }
-      Audio2.setVolumes(st.music, st.sfx); this.game.save.write();
+      Audio2.setVolumes(st.music, st.sfx); Save.write();
     };
     this.screens.querySelectorAll('input,select').forEach((i) => i.addEventListener('input', apply));
   }
@@ -252,7 +252,7 @@ export class UI {
     // When a revive is on offer, every choice uses the same button style (CrazyGames: skip must match the ad button)
     const retryCls = offers.length ? 'btn equal' : 'btn primary';
     this.show(`<div class="over">
-      <h1 class="red">${T('You have fallen')}</h1>
+      <h1 class="${info.victory ? 'gold' : 'red'}">${T(info.victory ? 'The siege has ended' : 'You have fallen')}</h1>
       <p class="sub">${info.newBest ? `<b class="gold">${T('New best!')}</b> ` : ''}${T('Wave {n}', { n: info.wave })} — ${T(info.sceneTitle)}</p>
       ${info.quote ? `<p class="king-quote">“${T(info.quote)}”</p>` : ''}
       <div class="stats">
@@ -360,6 +360,20 @@ export class UI {
       this._spT = setTimeout(next, 1400 + l.text.length * 45);
     };
     next();
+  }
+  // after wave 100: the story's ending, credits, and the choice to stop or go on
+  showEnding() {
+    const lines = ['The Eternal King has fallen.', 'For the first time in a thousand years, the gate is silent.', 'The cycle is broken. The siege is over.'];
+    this.show(`<div class="over ending">
+      <small class="gold">${T('Wave 100')}</small>
+      <h1 class="gold">${T('SIEGE ENDED')}</h1>
+      ${lines.map((l) => `<p class="end-line">${T(l)}</p>`).join('')}
+      <p class="end-badge">👑 ${T('Eternal')}</p>
+      <div class="end-credits"><b>Siege of Eternity</b><span>${T('Thank you for playing.')}</span></div>
+      <div class="row"><button class="btn primary" data-act="endless" data-focus>${icon('play')}<span>${T('Continue: Endless Siege')}</span></button>
+      <button class="btn" data-act="victoryMenu">${icon('back')}<span>${T('Return to menu')}</span></button></div>
+      <p class="hint">${T('Endless Siege: the arenas return and the enemies keep getting stronger.')}</p>
+    </div>`);
   }
   siegeEnded() {
     clearTimeout(this._spT); document.getElementById('speech')?.classList.remove('on');
