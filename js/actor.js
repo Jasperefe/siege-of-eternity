@@ -1,6 +1,6 @@
 // Base class for anything animated that fights: hero, enemies, bosses
 import * as THREE from 'three';
-import { Assets, measure, findBone } from './assets.js?v=202611161136';
+import { Assets, measure, findBone } from './assets.js?v=202611161604';
 
 const _v = new THREE.Vector3();
 let _id = 1;

@@ -1,11 +1,11 @@
 // DOM user interface: banner title screen, forged-iron buttons, HUD, cards, announcements, nameplates
 import * as THREE from 'three';
-import { HEROES, HERO_ORDER } from './hero.js?v=202611161136';
-import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611161136';
-import { Audio2 } from './audio.js?v=202611161136';
-import { Platform } from './platform.js?v=202611161136';
-import { Save } from './save.js?v=202611161136';
-import { t } from './i18n.js?v=202611161136';
+import { HEROES, HERO_ORDER } from './hero.js?v=202611161604';
+import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611161604';
+import { Audio2 } from './audio.js?v=202611161604';
+import { Platform } from './platform.js?v=202611161604';
+import { Save } from './save.js?v=202611161604';
+import { t } from './i18n.js?v=202611161604';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

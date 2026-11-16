@@ -2,8 +2,8 @@
 // Both are scaled to the player's own build when they appear, so the fight is decided by skill:
 // Vex is tuned to be beaten by roughly one player in four, the King by about one in fifty.
 import * as THREE from 'three';
-import { Audio2 } from './audio.js?v=202611161136';
-import { angleDiff, frand } from './util.js?v=202611161136';
+import { Audio2 } from './audio.js?v=202611161604';
+import { angleDiff, frand } from './util.js?v=202611161604';
 
 const approach = (v, to, d) => (v < to ? Math.min(to, v + d) : Math.max(to, v - d));
 
@@ -59,6 +59,15 @@ export const STORY = {
   dragon: ['The King sends his regards… Warden.'],
   warlord: ['You fight so well. Just like he did.'],
   vex: ['I followed you once, Warden.', 'I saw what you become.', "I'm sorry, friend."],
+  // what Vex says depends on who reaches him
+  vexBy: {
+    rogue: ["You're me… before the shadow took me.", 'Turn back while you still can.'],
+    barbarian: ['Grom. You always did hit first and think later.', "Let's see if that still works."],
+    ranger: ['Kael… you never missed.', "Let's see if you can hit what you can't see."],
+    mage: ["Seraphine. Your light can't reach where I've been."],
+    shade: ['So… the King sent you too?', "No. You're something else."],
+    monk: ["Oren. Peace won't save you here."],
+  },
   kingSelf: ['I am you, Warden. A thousand years from now.', 'I held this gate until eternity broke me.', 'I became the King… and the King sends the siege.', 'Every monster you slew, I sent — to make you strong enough to take my place.', 'Now prove it. Kill me… or become me.'],
   kingOther: ['You are not the Warden… but you will do.', 'I held this gate until eternity broke me.', 'Someone must wear the crown when I fall.', 'Prove you are worthy. Kill me… or kneel.'],
   kingMirror: ['You face your own reflection.'],
@@ -75,7 +84,7 @@ export function setupVex(g, e) {
   e.habit = { left: 0, right: 0 }; e._lastHeroState = null;
   e.setTint(0x4a0a9a, 0.4);
   addEyes(e, e.def.eyes);
-  speak(g, STORY.vex, 'Vex');
+  speak(g, STORY.vexBy[h.key] || STORY.vex, 'Vex');
 }
 
 function spawnClones(g, e, n) {
@@ -224,7 +233,7 @@ export function setupKing(g, e) {
   addEyes(e, e.def.eyes); addCrown(e);
   placeCrystals(g, e);
   g.ui.toast('Break his three Eternity Crystals to stop his regeneration');
-  const self = g.run.heroDef === g.hero.def && g.selHero === 'knight';
+  const self = h.key === 'knight';
   if (self) g.ui.speech([{ who: '', text: STORY.kingMirror[0] }, ...STORY.kingSelf.map((text) => ({ who: 'Your future self', text }))]);
   else speak(g, STORY.kingOther, 'The Eternal King');
 }
