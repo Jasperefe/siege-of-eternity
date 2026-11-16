@@ -1,9 +1,9 @@
 // Boot sequence: platform SDK -> loading screen -> assets -> menu
-import { Platform } from './platform.js?v=202611161604';
-import { Save } from './save.js?v=202611161604';
-import { Game } from './game.js?v=202611161604';
-import { setLang, t } from './i18n.js?v=202611161604';
-import { Audio2 } from './audio.js?v=202611161604';
+import { Platform } from './platform.js?v=202611161622';
+import { Save } from './save.js?v=202611161622';
+import { Game } from './game.js?v=202611161622';
+import { setLang, t } from './i18n.js?v=202611161622';
+import { Audio2 } from './audio.js?v=202611161622';
 
 async function boot() {
   const ui = { bar: document.getElementById('load-bar-fill'), text: document.getElementById('load-text') };

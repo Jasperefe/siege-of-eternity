@@ -1,22 +1,22 @@
 // Game orchestration: loop, camera, run flow, waves, platform hooks
 import * as THREE from 'three';
-import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611161604';
+import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611161622';
 if (window.SOE_DEV) window.__fb = { hitProp };
-import { Assets } from './assets.js?v=202611161604';
-import { Audio2 } from './audio.js?v=202611161604';
-import { Platform } from './platform.js?v=202611161604';
-import { Save } from './save.js?v=202611161604';
-import { FX } from './fx.js?v=202611161604';
-import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611161604';
-import { Hero, HEROES, heroAssets } from './hero.js?v=202611161604';
-import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611161604';
-import { Combat } from './combat.js?v=202611161604';
-import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611161604';
-import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611161604';
-import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611161604';
-import { Input } from './input.js?v=202611161604';
-import { t } from './i18n.js?v=202611161604';
-import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611161604';
+import { Assets } from './assets.js?v=202611161622';
+import { Audio2 } from './audio.js?v=202611161622';
+import { Platform } from './platform.js?v=202611161622';
+import { Save } from './save.js?v=202611161622';
+import { FX } from './fx.js?v=202611161622';
+import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611161622';
+import { Hero, HEROES, heroAssets } from './hero.js?v=202611161622';
+import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611161622';
+import { Combat } from './combat.js?v=202611161622';
+import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611161622';
+import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611161622';
+import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611161622';
+import { Input } from './input.js?v=202611161622';
+import { t } from './i18n.js?v=202611161622';
+import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611161622';
 
 const DEV = !!window.SOE_DEV;
 export const DEV_EVENT = DEV ? new URLSearchParams(location.search).get('event') : null; // test cheats (?god, ?wave=N, ?fast, ?overview) only in dev builds
@@ -33,7 +33,7 @@ export class Game {
     this.dailyKey = todaySeed().key;
     this.input = new Input();
     const q = this.save.settings.quality;
-    this.quality = q === 'auto' ? (this.input.isTouch ? 'low' : 'high') : q;
+    this.quality = q === 'low' ? 'low' : 'high'; // everyone starts on High; players can lower it in Settings
     const canvas = document.getElementById('game');
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.quality === 'high', powerPreference: 'high-performance' });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -96,16 +96,16 @@ export class Game {
 
   applyQuality() {
     const q = this.save.settings.quality;
-    this.quality = q === 'auto' ? (this.input.isTouch || Math.min(innerWidth, innerHeight) < 500 ? 'low' : 'high') : q;
-    const dpr = window.devicePixelRatio || 1;
-    this.renderer.setPixelRatio(this.quality === 'high' ? Math.min(dpr, 1.75) : Math.min(dpr, 1.0));
+    this.quality = q === 'low' ? 'low' : 'high';
+    const dpr = window.devicePixelRatio || 1, touch = this.input.isTouch;
+    this.renderer.setPixelRatio(this.quality === 'high' ? Math.min(dpr, touch ? 1.5 : 1.75) : Math.min(dpr, 1.0));
     const sh = this.quality === 'high';
     if (this.renderer.shadowMap.enabled !== sh) {
       this.renderer.shadowMap.enabled = sh;
       this.scene.traverse((o) => { if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true)); });
     }
-    this.world.sun.shadow.mapSize.set(2048, 2048);
-    if (this.fx.add) this.fx.add.thin = this.fx.norm.thin = this.quality === 'low' ? (this.input.isTouch ? 0.55 : 0.4) : 0; // phones: lighter effects, less heat
+    this.world.sun.shadow.mapSize.set(touch ? 1024 : 2048, touch ? 1024 : 2048);
+    if (this.fx.add) this.fx.add.thin = this.fx.norm.thin = this.quality === 'low' ? (touch ? 0.55 : 0.4) : (touch ? 0.3 : 0); // phones: lighter effects, less heat
     this.resize();
   }
 
@@ -388,6 +388,7 @@ export class Game {
     this.state = 'cleared';
     run.score += 100 * run.wave;
     this.ui.announce('WAVE CLEARED', 'gold', 1.6);
+    if (run.wave === 2 && this.input.isTouch && !this.save.flags.gfxTip) { this.save.flags.gfxTip = true; Save.write(); setTimeout(() => this.ui.toast('Tip: if your phone gets warm, set Graphics to Low in ⚙️ Settings'), 1800); }
     Audio2.sting('good');
     this.slowmo(0.8, 0.4);
     this.hero.heal(this.hero.maxHp * (this.run.wave >= 40 ? 0.2 : this.run.wave >= 30 ? 0.27 : 0.35), false);
@@ -644,6 +645,12 @@ export class Game {
     const cap = busy ? 60 : 30;
     if (cap && now - (this._lastDraw || 0) < 1000 / cap - 3) return;
     this._lastDraw = now;
+    if (busy && this.state === 'play' && this.quality === 'high' && !this._slowHinted) { // the game is struggling: point players to the Graphics setting, once
+      const ft = now - (this._pf || now); this._pf = now;
+      this._fpsAvg = this._fpsAvg ? this._fpsAvg * 0.97 + ft * 0.03 : ft;
+      if (this._fpsAvg > 26 && (this._slowT = (this._slowT || 0) + ft) > 6000) { this._slowHinted = true; this.ui.toast('Game running slow? Set Graphics to Low in ⚙️ Settings'); }
+      else if (this._fpsAvg <= 26) this._slowT = 0;
+    } else this._pf = now;
     try { this.frame(); } catch (err) {
       console.error('frame error', err);
       if (!this._errLogged) { this._errLogged = true; try { window.ytgame?.health?.logError(); } catch (e) {} }

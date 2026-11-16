@@ -1,4 +1,4 @@
-import { Platform } from './platform.js?v=202611161604';
+import { Platform } from './platform.js?v=202611161622';
 
 const DEFAULT = () => ({
   v: 1,
@@ -9,7 +9,7 @@ const DEFAULT = () => ({
   flags: { goldenKnight: false, drake: false, dragon: false, tutorial: false },
   modes: { nightmare: false, eternity: false },
   daily: { key: 0, best: 0 },
-  settings: { music: 0.6, sfx: 0.9, quality: 'auto', shake: true },
+  settings: { music: 0.6, sfx: 0.9, quality: 'high', shake: true },
   stats: { runs: 0, kills: 0, deaths: 0 },
 });
 

@@ -1,8 +1,8 @@
 // Enemy roster, elite modifiers, AI and boss behaviours
 import * as THREE from 'three';
-import { Actor } from './actor.js?v=202611161604';
-import { Audio2 } from './audio.js?v=202611161604';
-import { angleDiff, clamp, dampAngle, frand } from './util.js?v=202611161604';
+import { Actor } from './actor.js?v=202611161622';
+import { Audio2 } from './audio.js?v=202611161622';
+import { angleDiff, clamp, dampAngle, frand } from './util.js?v=202611161622';
 
 const CH = 'chars/', W = 'weapons/', FB = 'fbx/';
 const QF = ['FistR'], KR = ['handslotr'], KL = ['handslotl'];

@@ -1,11 +1,11 @@
 // DOM user interface: banner title screen, forged-iron buttons, HUD, cards, announcements, nameplates
 import * as THREE from 'three';
-import { HEROES, HERO_ORDER } from './hero.js?v=202611161604';
-import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611161604';
-import { Audio2 } from './audio.js?v=202611161604';
-import { Platform } from './platform.js?v=202611161604';
-import { Save } from './save.js?v=202611161604';
-import { t } from './i18n.js?v=202611161604';
+import { HEROES, HERO_ORDER } from './hero.js?v=202611161622';
+import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611161622';
+import { Audio2 } from './audio.js?v=202611161622';
+import { Platform } from './platform.js?v=202611161622';
+import { Save } from './save.js?v=202611161622';
+import { t } from './i18n.js?v=202611161622';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -165,7 +165,8 @@ export class UI {
     this.panel(T('Settings'), `<div class="settings">
       <label><span>${T('Music')}</span><input type="range" min="0" max="1" step="0.05" value="${st.music}" id="set-music"></label>
       <label><span>${T('Effects')}</span><input type="range" min="0" max="1" step="0.05" value="${st.sfx}" id="set-sfx"></label>
-      <label><span>${T('Graphics')}</span><select id="set-q"><option value="auto">${T('Auto')}</option><option value="high">${T('High')}</option><option value="low">${T('Low (faster)')}</option></select></label>
+      <label><span>${T('Graphics')}</span><select id="set-q"><option value="high">${T('High')}</option><option value="low">${T('Low (faster)')}</option></select></label>
+      <p class="set-note">${T('Choose Low if the game lags or your device gets warm.')}</p>
       <label><span>${T('Screen shake')}</span><input type="checkbox" id="set-shake" ${st.shake ? 'checked' : ''}></label>
     </div>${ytNote}
     <div class="credits"><b>${T('Music')}</b>
@@ -175,7 +176,7 @@ export class UI {
       <b>${T('Art and sound')}</b>
       <p>Kenney (kenney.nl), Kay Lousberg (KayKit), Quaternius — CC0 / free licences</p>
     </div>`, 'settings');
-    $('#set-q').value = st.quality;
+    $('#set-q').value = st.quality === 'low' ? 'low' : 'high';
     const apply = () => {
       st.music = +$('#set-music').value; st.sfx = +$('#set-sfx').value; st.shake = $('#set-shake').checked;
       const q = $('#set-q').value; if (q !== st.quality) { st.quality = q; this.game.applyQuality(); }

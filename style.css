@@ -377,3 +377,5 @@ body.dark-age #darkveil { opacity: 1; }
 .ending .end-badge { display: inline-block; margin: 14px 0; padding: 6px 16px; border: 2px solid #ffd36b; color: #ffd36b; font-weight: 700; font-size: 20px; }
 .ending .end-credits { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 18px; opacity: .8; }
 .ending .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+.set-note { margin: -4px 0 8px; font-size: 13px; opacity: .7; }
