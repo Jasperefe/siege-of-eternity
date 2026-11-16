@@ -345,3 +345,27 @@ body.dark-age #darkveil { opacity: 1; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
 }
+
+/* first-run hints */
+#coach { position: absolute; z-index: 14; left: 50%; bottom: max(140px, calc(var(--sab, 0px) + 130px)); transform: translate(-50%, 12px); opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none;
+  background: rgba(22, 23, 26, .92); box-shadow: inset 0 -2px 0 var(--brass); padding: 10px 18px; font-size: 17px; text-align: center; display: flex; gap: 10px; align-items: baseline; max-width: 92vw; }
+#coach.on { opacity: 1; transform: translate(-50%, 0); }
+#coach small { color: var(--brass); font-size: 12px; white-space: nowrap; }
+@media (pointer: coarse) { #coach { bottom: auto; top: max(150px, calc(var(--sat) + 140px)); font-size: 15px; } }
+
+/* boss speech */
+#speech { position: absolute; z-index: 15; left: 50%; bottom: max(200px, calc(var(--sab, 0px) + 190px)); transform: translateX(-50%); width: min(640px, 92vw); text-align: center; pointer-events: none; opacity: 0; transition: opacity .3s; }
+#speech.on { opacity: 1; }
+#speech b { display: block; font-size: 13px; letter-spacing: 1px; color: #ff6a50; margin-bottom: 4px; }
+#speech span { font-size: 20px; font-style: italic; color: #fff; text-shadow: 0 2px 0 #000, 0 0 12px rgba(0, 0, 0, .9); }
+@media (pointer: coarse) { #speech { bottom: auto; top: 46%; } #speech span { font-size: 17px; } }
+.king-quote { color: #ff6a50; font-style: italic; font-size: 18px; margin: 4px 0 10px; }
+/* wave 100 victory */
+#ended { position: absolute; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; text-align: center; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(40, 20, 0, .65), rgba(0, 0, 0, .85)); animation: endedIn 1.2s ease-out; transition: opacity 1s; }
+#ended.out { opacity: 0; }
+#ended small { color: #e8c070; letter-spacing: 3px; font-size: 14px; }
+#ended h1 { font-size: clamp(44px, 9vw, 96px); color: #ffd36b; margin: 6px 0; text-shadow: 0 4px 0 #3a1d05, 0 0 30px rgba(255, 180, 60, .6); }
+#ended p { color: #fff; font-size: 20px; margin: 0 0 16px; }
+#ended .badge { display: inline-block; padding: 8px 18px; border: 2px solid #ffd36b; color: #ffd36b; font-size: 22px; font-weight: 700; }
+@keyframes endedIn { from { opacity: 0; } to { opacity: 1; } }

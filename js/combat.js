@@ -1,8 +1,9 @@
 // Damage, projectiles, AoE, hazards and all the upgrade-card effects
 import * as THREE from 'three';
-import { Assets } from './assets.js?v=202611132226';
-import { Audio2 } from './audio.js?v=202611132226';
-import { angleDiff, frand } from './util.js?v=202611132226';
+import { hitProp, onCloneKilled } from './finalbosses.js?v=202611160946';
+import { Assets } from './assets.js?v=202611160946';
+import { Audio2 } from './audio.js?v=202611160946';
+import { angleDiff, frand } from './util.js?v=202611160946';
 
 const _v = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
@@ -55,6 +56,13 @@ export class Combat {
       for (const e of g.enemies) if (!e.dead && Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < st.aoe && hero.dist(e) > range) this.dealToEnemy(e, base * 0.6, hero, { knock: st.knock, aoe: true });
       Audio2.play('rock', { vol: 0.5 });
     }
+    for (const p of g.props || []) { // breakable objects (the King's crystals)
+      if (!p.alive) continue;
+      const d = Math.hypot(p.pos.x - hero.pos.x, p.pos.z - hero.pos.z) - p.r;
+      if (d > range) continue;
+      if (st.arc < 300 && Math.abs(angleDiff(hero.facing, Math.atan2(p.pos.x - hero.pos.x, p.pos.z - hero.pos.z))) > arc + 0.15) continue;
+      hits++; hitProp(g, p, base);
+    }
     if (hits) { g.hitstop(st.heavy ? 0.085 : 0.045); if (st.shake) g.shake(st.shake); }
     if (st.heavy && m.whirl) this.pullEnemies(hero.pos, 6.5, hero);
     if (st.heavy && m.quake) { const c = hero.pos; g.fx.shockwave(c, 5, [0.9, 0.7, 0.4]); for (const e of g.enemies) if (!e.dead && hero.dist(e) < 5) this.dealToEnemy(e, base * 0.5 * m.quake, hero, { knock: 8, aoe: true }); }
@@ -105,7 +113,8 @@ export class Combat {
     if (e.isBoss && e.bossShield) dmg *= 0.2;
     if (e.vulnerable) dmg *= 1.6;
     dmg = Math.max(1, Math.round(dmg));
-    e.hp -= dmg; e.lastHitBy = src;
+    e.hp -= dmg; e.lastHitBy = src; e.lastHurt = g.time;
+    if (e.immortal && e.hp < 1) e.hp = 1; // the Eternal King cannot fall while a crystal stands
     run && (run.stats.dealt += dmg);
     // execution: a killing blow on a staggered/frozen enemy
     let execute = false;
@@ -252,6 +261,7 @@ export class Combat {
     }
     if (e.elite) { run.shardsBonus += 3; g.fx.magic({ x: e.pos.x, y: 1.2, z: e.pos.z }, [1, 0.8, 0.3], 30, 5); Audio2.play('coins', { vol: 0.6 }); }
     if (e.isBoss) g.onBossDefeated(e);
+    if (e.cloneOf) onCloneKilled(g, e);
     if (e.thief) g.onThiefCaught(e);
     if (e.champion) g.onChampionDefeated(e);
   }
@@ -349,6 +359,9 @@ export class Combat {
       for (const c of g.world.colliders) if (Math.hypot(p.pos.x - c.x, p.pos.z - c.z) < c.r) { blocked = true; break; }
       if (blocked) { this.killProj(p); continue; }
       if (p.team === 'hero') {
+        let prop = null;
+        for (const q of g.props || []) if (q.alive && !p.hit.has(q) && Math.hypot(q.pos.x - p.pos.x, q.pos.z - p.pos.z) < q.r + 0.35) { prop = q; break; }
+        if (prop) { p.hit.add(prop); hitProp(g, prop, p.dmg); if (p.aoe || p.pierce-- <= 0) { this.killProj(p, !!p.aoe); continue; } }
         for (const e of g.enemies) {
           if (e.dead || p.hit.has(e) || e.state === 'spawning') continue;
           const dy = Math.abs((e.pivot.position.y + e.height * 0.5) - p.pos.y);
@@ -547,8 +560,10 @@ export class Combat {
     for (const p of this.projectiles) this.killProj(p, false);
     this.projectiles = []; this.hazards = [];
     this.orbits.forEach((o) => this.game.scene.remove(o.obj)); this.orbits = [];
+    for (const p of this.game.props || []) { p.alive = false; if (p.mesh) this.game.scene.remove(p.mesh); }
+    this.game.props = [];
   }
 }
 
-import { ALL_DEFS } from './enemies.js?v=202611132226';
+import { ALL_DEFS } from './enemies.js?v=202611160946';
 const ALL_FLY = (k) => !!ALL_DEFS[k]?.flying;

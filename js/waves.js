@@ -1,7 +1,10 @@
 // Wave director: budgets, difficulty curve, events, elites, hazards and boss AI
-import { ENEMIES, ASCENDED } from './enemies.js?v=202611132226';
-import { Audio2 } from './audio.js?v=202611132226';
-import { angleDiff, clamp, frand } from './util.js?v=202611132226';
+import { ENEMIES, ASCENDED } from './enemies.js?v=202611160946';
+import { setupVex, setupKing, vexAI, kingAI, speak, STORY } from './finalbosses.js?v=202611160946';
+import { t } from './i18n.js?v=202611160946';
+const STORY_ON_SPAWN = { golden: STORY.golden, dragon: STORY.dragon, asc: STORY.warlord };
+import { Audio2 } from './audio.js?v=202611160946';
+import { angleDiff, clamp, frand } from './util.js?v=202611160946';
 
 export const EVENTS = {
   bloodmoon: { name: 'Blood Moon', icon: '🩸', desc: 'Enemies are faster and stronger — but drop double shards', min: 6 },
@@ -21,9 +24,11 @@ export function sceneForWave(n) {
 export const BOSS_CYCLE = ['golden_knight', 'drake', 'shadow_dragon', 'behemoth', 'asc_warlord', 'shadow_dragon', 'asc_blade', 'behemoth'];
 export function bossForWave(n) {
   if (n % 10 !== 0) return null;
+  if (n === 90) return 'vex';
+  if (n === 100) return 'king';
   return BOSS_CYCLE[((n / 10) - 1) % BOSS_CYCLE.length];
 }
-export const BOSS_EXTRA = { asc_warlord: ['berserker'], asc_blade: ['archmage', 'bladedancer'] };
+export const BOSS_EXTRA = { asc_warlord: ['berserker'], asc_blade: ['archmage', 'bladedancer'], vex: ['vex_clone'], king: ['champion'] };
 export function tierForWave(n) { return n < 8 ? 0 : n < 14 ? 1 : n < 20 ? 2 : n < 30 ? 3 : 4; }
 
 export class Director {
@@ -42,7 +47,8 @@ export class Director {
       // adds come with the boss
       const adds = { golden_knight: ['skel_minion', 'soldier'], drake: ['bat', 'hound'], shadow_dragon: ['ghost_skull', 'demon'], behemoth: ['orc_skull', 'skel_warrior'],
         asc_warlord: ['orc_skull', 'viking', 'thornback'], asc_blade: ['stalker', 'wraith', 'sage'] }[bossKey];
-      for (let i = 0; i < 1 + Math.floor(n / 20); i++) this.queue.push({ key: rng.pick(adds), delay: 20 + i * 8 });
+      // wave 90 is the Death Zone and wave 100 a duel: no extra minions
+      if (adds) for (let i = 0; i < 1 + Math.floor(n / 20); i++) this.queue.push({ key: rng.pick(adds), delay: 20 + i * 8 });
       this.maxAlive = 4;
       this.bossPending = { key: bossKey, level, at: 0.9 };
       return;
@@ -110,8 +116,14 @@ export class Director {
     e.maxHp = e.def.hp * 0.7 * lv * (1 + loop * 0.9) * late * g.run.modeMul * (g.run.mode === 'casual' ? 0.7 : 1); e.hp = e.maxHp;
     e.dmgMul = 0.8 * (1 + (level.dmg - 1) * 0.6) * (1 + loop * 0.35) * (g.run.mode === 'casual' ? 0.7 : 1);
     if (loop > 0 || this.n > 40) e.atkSpeed = 1 + 0.12 * (loop + (this.n > 40 ? 1 : 0));
+    // tuned up after playtests: the wave 20 and 30 bosses were too soft for a typical build
+    const tune = { drake: [1.4, 1.2, 1.1], shadow_dragon: [1.4, 1.25, 1.08] }[key];
+    if (tune && this.n <= 30) { e.maxHp *= tune[0]; e.hp = e.maxHp; e.dmgMul *= tune[1]; e.atkSpeed = (e.atkSpeed || 1) * tune[2]; if (key === 'shadow_dragon') e.enrage = true; }
     if (level.p50 > 1) { e.maxHp *= 1 + (level.p50 - 1) * 0.6; e.hp = e.maxHp; e.atkSpeed *= 1.1; } // wave 50+ bosses: brutal but beatable // returning bosses attack faster
     this.bossEnemy = e;
+    if (key === 'vex') setupVex(g, e);
+    if (key === 'king') setupKing(g, e);
+    if (STORY_ON_SPAWN[e.def.boss] && this.n <= 50) speak(g, STORY_ON_SPAWN[e.def.boss], t(e.def.name).split(',')[0]);
     g.ui.bossIntro(e); g.ui.bossHp(e);
     Audio2.sting('boss'); Audio2.roar(0.6);
     g.music('boss');
@@ -185,7 +197,7 @@ export class Director {
       if (e.state === 'chase' && e.guardT <= 0 && e.dist(hero) < 4 && hero.state === 'attack' && hero.stateT < 0.1 && Math.random() < 0.25) e.guard(0.9);
     } else if (e.def.boss === 'drake') {
       // lands to rest after dives (vulnerable)
-      if (e.state === 'chase' && e._lastAtk === 'dive' && !e.resting) { e.resting = 2.8; e._lastAtk = null; }
+      if (e.state === 'chase' && e._lastAtk === 'dive' && !e.resting) { e.resting = 2.5; e._lastAtk = null; }
       if (e.resting > 0 && e.state !== 'attack') {
         e.resting -= dt; e.flyOverride = 0.7; e.vel.set(0, 0, 0); e.skipThink = true; e.vulnerable = true;
         if (Math.random() < dt * 3) g.fx.smoke({ x: e.pos.x, y: 0.5, z: e.pos.z }, 1, 0.2);
@@ -221,6 +233,11 @@ export class Director {
         for (const k of extra) { const a = Math.random() * 6.28; const m = g.spawnEnemy(k, { x: e.pos.x + Math.sin(a) * 5, z: e.pos.z + Math.cos(a) * 5, mode: 'portal' }); if (m) g.empowerAscended(m, 0.6); }
       }
       if (e.bossPhase === 2 && e.key === 'asc_warlord' && Math.random() < dt * 0.08) g.combat.warcry(e);
+    } else if (e.def.boss === 'vex') {
+      vexAI(g, e, dt);
+      for (const c of g.enemies) if (c.cloneOf === e && !c._ghost && c.state !== 'spawning') { c._ghost = true; c.setOpacity(0.6); }
+    } else if (e.def.boss === 'king') {
+      kingAI(g, e, dt);
     } else if (e.def.boss === 'behemoth') {
       // freezing aura: the closer you are, the slower you move
       if (e.dist(hero) < 7) { hero.status.slow = 0.2; hero.status.slowAmt = 0.25; }

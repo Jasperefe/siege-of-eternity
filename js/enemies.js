@@ -1,8 +1,8 @@
 // Enemy roster, elite modifiers, AI and boss behaviours
 import * as THREE from 'three';
-import { Actor } from './actor.js?v=202611132226';
-import { Audio2 } from './audio.js?v=202611132226';
-import { angleDiff, clamp, dampAngle, frand } from './util.js?v=202611132226';
+import { Actor } from './actor.js?v=202611160946';
+import { Audio2 } from './audio.js?v=202611160946';
+import { angleDiff, clamp, dampAngle, frand } from './util.js?v=202611160946';
 
 const CH = 'chars/', W = 'weapons/', FB = 'fbx/';
 const QF = ['FistR'], KR = ['handslotr'], KL = ['handslotl'];
@@ -165,6 +165,7 @@ export const BOSSES = {
       { anim: 'DragonArmature|Dragon_Attack2', dur: 1.2, hit: 0.5, range: 20, kind: 'ranged', proj: 'fireball', speed: 16, count: 5, spread: 0.7, aoe: 2.4, dmg: 1, cd: 1.5 },
       { anim: 'DragonArmature|Dragon_Attack', dur: 2.2, hit: 0.45, range: 22, kind: 'dive', dmg: 1.5, cd: 2.5, telegraph: true, unblockable: true },
       { anim: 'DragonArmature|Dragon_Flying', dur: 1.6, hit: 0.5, range: 30, kind: 'summon', summon: 'bat', count: 5, dmg: 0, cd: 9 },
+      { anim: 'DragonArmature|Dragon_Attack2', dur: 2.2, hit: 0.3, range: 14, kind: 'breath', dmg: 0.3, cd: 5, unblockable: true },
     ] },
   shadow_dragon: { name: 'Nyxthara, the Shadow Dragon', title: 'Devourer of Eternity', model: CH + 'm_Dragon_Evolved.glb', h: 7.5, r: 2.4, hp: 7200, dmg: 28, speed: 5.0, mass: 1, mat: 'flesh',
     boss: 'dragon', flying: 1.0, color: 0x6a4a8a, emissive: 0x220833,
@@ -186,6 +187,33 @@ BOSSES.behemoth = { name: 'Gorrath the Frost Behemoth', title: 'The Mountain Tha
     { anim: 'Weapon', dur: 1.8, hit: 0.65, range: 6, kind: 'slam', aoe: 6.5, dmg: 1.2, cd: 2.5, telegraph: true, unblockable: true, freeze: 1.5 },
     { anim: 'Jump', dur: 1.6, hit: 0.75, range: 16, kind: 'leap', aoe: 5, dmg: 1.4, cd: 4, telegraph: true, unblockable: true },
     { anim: 'Run', dur: 1.6, hit: 0.3, range: 16, kind: 'charge', dmg: 1.2, cd: 5, telegraph: true, unblockable: true, knock: 14 },
+  ] };
+
+// Wave 90 and 100: two of the heroes, turned. Stats are re-scaled to the player's build on spawn (finalbosses.js).
+BOSSES.vex = { name: 'Vex the Shade', title: 'Taken by Eternity', model: CH + 'kk_Rogue.glb', clips: KK, h: 2.9, r: 0.8, hp: 9000, dmg: 30, speed: 7.0, mass: 0.95,
+  mat: 'flesh', boss: 'vex', color: 0x6a4a88, emissive: 0x3a0a7a, eyes: 0xc050ff, blood: [0.35, 0.05, 0.6],
+  anims: { ...KANIM }, weapons: [[W + 'dagger.glb', KR], [W + 'dagger.glb', KL]], traits: ['dodger'],
+  attacks: [
+    { anim: 'Melee_Dualwield_Attack_Chop', dur: 0.75, hit: 0.5, range: 2.6, arc: 130, dmg: 1, cd: 0.9 },
+    { anim: 'Melee_Dualwield_Attack_Slice', dur: 0.85, hit: 0.42, range: 2.6, arc: 170, dmg: 0.6, multi: 2, cd: 1.0 },
+    { anim: 'Melee_Dualwield_Attack_Stab', dur: 0.9, hit: 0.55, range: 3.4, arc: 60, dmg: 1.3, cd: 1.3, lunge: 8 },
+    { anim: 'Melee_Dualwield_Attack_Stab', dur: 1.05, hit: 0.62, range: 18, reach: 2.8, kind: 'blinkstrike', arc: 150, dmg: 1.8, cd: 5, telegraph: true, unblockable: true, phantom: true },
+  ] };
+BOSSES.vex_clone = { ...BOSSES.vex, name: 'Shade of Vex', title: '', boss: undefined, clone: true, h: 2.2, r: 0.55, hp: 100, mass: 0.15, mat: 'ghost', traits: [],
+  color: 0xb08aff, emissive: 0x6a1aff, eyes: 0xc050ff,
+  attacks: [
+    { anim: 'Melee_Dualwield_Attack_Chop', dur: 0.85, hit: 0.5, range: 2.2, arc: 120, dmg: 1, cd: 1.7 },
+    { anim: 'Melee_Dualwield_Attack_Stab', dur: 0.9, hit: 0.55, range: 2.6, arc: 70, dmg: 1, cd: 1.9, lunge: 6 },
+  ] };
+BOSSES.king = { name: 'The Eternal King', title: 'The Warden, a thousand years from now', model: CH + 'kk_Knight.glb', clips: KK, h: 3.5, r: 1.0, hp: 16000, dmg: 34, speed: 5.4, mass: 1,
+  mat: 'metal', boss: 'king', color: 0xb89870, emissive: 0x3a0800, eyes: 0xff0000,
+  anims: { ...KANIM, idle: 'Melee_2H_Idle' }, weapons: [[W + 'sword_2handed_color.glb', KR], [W + 'shield_round.glb', KL]], traits: ['blocker'],
+  attacks: [
+    { anim: 'Melee_2H_Attack_Chop', dur: 1.0, hit: 0.55, range: 3.6, arc: 120, dmg: 1, cd: 1.2 },
+    { anim: 'Melee_2H_Attack_Slice', dur: 0.95, hit: 0.5, range: 3.8, arc: 180, dmg: 0.9, cd: 1.2 },
+    { anim: 'Melee_2H_Attack_Stab', dur: 1.05, hit: 0.6, range: 4.6, arc: 60, dmg: 1.2, cd: 1.5, lunge: 8 },
+    { anim: 'Melee_2H_Attack_Spin', dur: 1.8, hit: 0.4, range: 4.4, kind: 'spin', aoe: 4.0, dmg: 0.55, multi: 3, cd: 3.5, telegraph: true, unblockable: true },
+    { anim: 'Running_A', dur: 1.5, hit: 0.45, range: 20, kind: 'charge', dmg: 1.5, cd: 5, telegraph: true, unblockable: true, knock: 16, eternalDash: true },
   ] };
 
 BOSSES.asc_warlord = { ...ASCENDED.warlord, name: 'Korgath, the Ascended Warlord', title: 'He Who Broke the Sky', h: 3.4, r: 1.0, hp: 8000, boss: 'asc', color: 0xffc0a0, emissive: 0x330800 };
@@ -464,13 +492,15 @@ export class Enemy extends Actor {
       if (a.kind === 'slam' || a.kind === 'spin') this.tele = g.fx.telegraph(_aheadOf(this, a.kind === 'spin' ? 0 : a.aoe * 0.55), a.aoe * this.root.scale.x, dur * a.hit, this.unblockable ? [1, 0.1, 0.05] : [1, 0.55, 0.1]);
       else if (a.kind === 'leap') { this.leapTo = { x: hero.pos.x, z: hero.pos.z }; this.tele = g.fx.telegraph(this.leapTo, a.aoe, dur * a.hit, [1, 0.1, 0.05]); }
       else if (a.kind === 'charge' || a.kind === 'dive') { this.chargeDir = this.angleTo(hero); }
-      if (a.kind === 'blinkstrike') { // vanish and reappear behind the hero
-        g.fx.smoke(this.pos, 10, 0.1); g.fx.magic({ x: this.pos.x, y: 1, z: this.pos.z }, [0.7, 0.4, 1], 14, 3);
-        const hb = hero.facing + Math.PI;
-        this.pos.x = hero.pos.x + Math.sin(hb) * 1.8; this.pos.z = hero.pos.z + Math.cos(hb) * 1.8;
-        g.world.resolve(this.pos, this.radius); this.facing = this.angleTo(hero); this.root.rotation.y = this.facing;
-        g.fx.magic({ x: this.pos.x, y: 1, z: this.pos.z }, [0.7, 0.4, 1], 14, 3); Audio2.magic(0.2, 1.4);
-      }
+    }
+    if (a.kind === 'blinkstrike' && a.telegraph) { // vanish and reappear behind the hero (smart bosses aim where the hero is heading)
+      g.fx.smoke(this.pos, 10, 0.1); g.fx.magic({ x: this.pos.x, y: 1, z: this.pos.z }, [0.7, 0.4, 1], 14, 3);
+      const lead = this.def.boss ? 0.45 : 0;
+      const px = hero.pos.x + hero.vel.x * lead, pz = hero.pos.z + hero.vel.z * lead;
+      const hb = hero.facing + Math.PI;
+      this.pos.x = px + Math.sin(hb) * 1.8; this.pos.z = pz + Math.cos(hb) * 1.8;
+      g.world.resolve(this.pos, this.radius); this.facing = Math.atan2(px - this.pos.x, pz - this.pos.z); this.root.rotation.y = this.facing;
+      g.fx.magic({ x: this.pos.x, y: 1, z: this.pos.z }, [0.7, 0.4, 1], 14, 3); Audio2.magic(0.2, 1.4);
     }
     if (a.kind === 'leap' && !this.leapTo) this.leapTo = { x: hero.pos.x, z: hero.pos.z };
     if (this.def.mass >= 0.5 && Math.random() < 0.5) Audio2.growl(0.25, this.def.h > 2.8 ? 0.6 : 0.9, 0.6);

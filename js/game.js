@@ -1,20 +1,22 @@
 // Game orchestration: loop, camera, run flow, waves, platform hooks
 import * as THREE from 'three';
-import { Assets } from './assets.js?v=202611132226';
-import { Audio2 } from './audio.js?v=202611132226';
-import { Platform } from './platform.js?v=202611132226';
-import { Save } from './save.js?v=202611132226';
-import { FX } from './fx.js?v=202611132226';
-import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611132226';
-import { Hero, HEROES, heroAssets } from './hero.js?v=202611132226';
-import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611132226';
-import { Combat } from './combat.js?v=202611132226';
-import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611132226';
-import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611132226';
-import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611132226';
-import { Input } from './input.js?v=202611132226';
-import { t } from './i18n.js?v=202611132226';
-import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611132226';
+import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611160946';
+if (window.SOE_DEV) window.__fb = { hitProp };
+import { Assets } from './assets.js?v=202611160946';
+import { Audio2 } from './audio.js?v=202611160946';
+import { Platform } from './platform.js?v=202611160946';
+import { Save } from './save.js?v=202611160946';
+import { FX } from './fx.js?v=202611160946';
+import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611160946';
+import { Hero, HEROES, heroAssets } from './hero.js?v=202611160946';
+import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611160946';
+import { Combat } from './combat.js?v=202611160946';
+import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611160946';
+import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611160946';
+import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611160946';
+import { Input } from './input.js?v=202611160946';
+import { t } from './i18n.js?v=202611160946';
+import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611160946';
 
 const DEV = !!window.SOE_DEV;
 export const DEV_EVENT = DEV ? new URLSearchParams(location.search).get('event') : null; // test cheats (?god, ?wave=N, ?fast, ?overview) only in dev builds
@@ -66,6 +68,27 @@ export class Game {
     if (Platform.name === 'poki') document.body.classList.add('poki');
     this._tick = (t) => this.loop(t);
     if (DEV && location.search.includes('fast')) this._maxDt = 0.2;
+  }
+
+  // first-run hints: one at a time, each disappears once the player does it (or after a while)
+  coachTick(inp, raw) {
+    const c = this.run.coach, touch = this.input.isTouch;
+    const steps = [
+      { txt: touch ? 'Drag on the left side to move' : 'Move with WASD or the arrow keys', done: () => inp.moveRaw.length() > 0.3 && (c.n += raw) > 0.6 },
+      { txt: touch ? 'Tap the sword button to attack' : 'Click or press J to attack', done: () => inp.attack && ++c.n >= 3 },
+      { txt: touch ? 'Tap the shield just before a hit to parry' : 'Right-click or K just before a hit to parry', done: () => inp.blockPressed },
+      { txt: touch ? 'Tap the wind button to dodge' : 'Press Space to dodge', done: () => inp.dodge },
+    ];
+    if (c.i >= steps.length) { this.ui.coach(null); this.run.coach = null; return; }
+    const st = steps[c.i];
+    if (c.shown !== c.i) { c.shown = c.i; c.t = 0; c.n = 0; this.ui.coach(st.txt, c.i + 1, steps.length); }
+    c.t += raw;
+    if (st.done() || c.t > 14) { c.i++; this.ui.coach(null); if (c.i < steps.length) Audio2.play('coins', { vol: 0.25 }); }
+  }
+
+  batterySaver() {
+    const s = this.save.settings.battery ?? 'auto';
+    return s === 'on' || (s === 'auto' && this.input.isTouch);
   }
 
   heroUnlocked(k) {
@@ -327,7 +350,8 @@ export class Game {
     const qs = new URLSearchParams(DEV ? location.search : ''), sw = +qs.get('wave') || 1;
     if (qs.has('god')) this.hero.stats.maxHp = this.hero.maxHp = this.hero.hp = 99999;
     if (sw > 1) { await this.world.build(sceneForWave(sw)); this.hero.pos.set(0, 0, 2); this.save.flags.tutorial = true; }
-    if (!this.save.flags.tutorial) { this.state = 'menuRun'; this.ui.showHowTo('beginRun'); return; }
+    // first run: no rules screen, straight into the fight with short hints that follow what the player does
+    if (!this.save.flags.tutorial) { this.save.flags.tutorial = true; Save.write(); this.run.coach = { i: 0, t: 0, n: 0 }; }
     this.beginWave(sw);
   }
 
@@ -455,7 +479,8 @@ export class Game {
       if (run.daily) { if (s.daily.key !== this.dailyKey) s.daily = { key: this.dailyKey, best: 0 }; s.daily.best = Math.max(s.daily.best, run.wave); }
       Save.now();
       Platform.sendScore(s.best.score);
-      this.lastResult = { wave: run.wave, score: run.score, kills: run.stats.kills, parries: run.stats.parries, shards: run.paid, unlocks, newBest, sceneTitle: SCENES[this.world.key].title, daily: run.daily };
+      this.lastResult = { wave: run.wave, score: run.score, kills: run.stats.kills, parries: run.stats.parries, shards: run.paid, unlocks, newBest, sceneTitle: SCENES[this.world.key].title, daily: run.daily,
+        quote: run.wave === 100 && this.director.bossEnemy && !this.director.bossEnemy.dead ? STORY.kingLose : null };
     }
     const canRevive = !run.revived && run.mode !== 'eternity' && run.wave >= 3;
     this.state = 'dead';
@@ -524,6 +549,8 @@ export class Game {
     if (e.def.boss === 'drake') s.flags.drake = true;
     if (e.def.boss === 'dragon') { s.flags.dragon = true; s.modes.nightmare = true; s.modes.eternity = true; }
     if (e.def.boss === 'behemoth') s.flags.behemoth = true;
+    if (e.def.boss === 'vex') { s.flags.vex = true; removeEyes(e); }
+    if (e.def.boss === 'king') { removeEyes(e); onKingDefeated(this, e); }
     // the rest of the wave's adds flee
     for (const o of this.enemies) if (!o.dead && o !== e) this.combat.kill(o, null, {});
     this.director.queue = [];
@@ -610,6 +637,11 @@ export class Game {
     if (this.sysPause) return; // YouTube onPause: stop everything (rendering included)
     cancelAnimationFrame(this._raf);
     this._raf = requestAnimationFrame(this._tick);
+    // battery saver: phones (often 120 Hz) and every menu/card screen run at ~30 fps; this keeps devices cool
+    const now = performance.now(), busy = this.state === 'play' || this.state === 'cleared' || this.state === 'dying';
+    const cap = (!busy || this.batterySaver()) ? 30 : 0;
+    if (cap && now - (this._lastDraw || 0) < 1000 / cap - 3) return;
+    this._lastDraw = now;
     try { this.frame(); } catch (err) {
       console.error('frame error', err);
       if (!this._errLogged) { this._errLogged = true; try { window.ytgame?.health?.logError(); } catch (e) {} }
@@ -630,6 +662,7 @@ export class Game {
     this.time += dt;
 
     const inp = this.input.read();
+    if (this.run?.coach && this.state === 'play') this.coachTick(inp, raw);
     if (inp.pause && (this.state === 'play' || this.state === 'paused')) this.togglePause(this.state === 'play');
     if (this.hero) {
       if (playing) {
@@ -689,6 +722,7 @@ export class Game {
       this.camera.fov = 45; this.camera.updateProjectionMatrix();
       return;
     }
+    if (DEV && window.__cine) { const c = window.__cine; this.camera.position.set(...c.pos); this.camera.lookAt(...c.look); if (c.fov && this.camera.fov !== c.fov) { this.camera.fov = c.fov; this.camera.updateProjectionMatrix(); } this.updateHole && (this._holeOff = true); return; }
     if (DEV && location.search.includes('overview')) { this.camera.position.set(0, 42, 34); this.camera.lookAt(0, 0, 0); return; }
     let tx = h.pos.x + h.vel.x * 0.12, tz = h.pos.z + h.vel.z * 0.12;
     if (this.focus && this.focusT > 0) { this.focusT -= raw; tx = (h.pos.x + this.focus.pos.x) / 2; tz = (h.pos.z + this.focus.pos.z) / 2; }

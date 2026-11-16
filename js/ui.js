@@ -1,10 +1,10 @@
 // DOM user interface: banner title screen, forged-iron buttons, HUD, cards, announcements, nameplates
 import * as THREE from 'three';
-import { HEROES, HERO_ORDER } from './hero.js?v=202611132226';
-import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611132226';
-import { Audio2 } from './audio.js?v=202611132226';
-import { Platform } from './platform.js?v=202611132226';
-import { t } from './i18n.js?v=202611132226';
+import { HEROES, HERO_ORDER } from './hero.js?v=202611160946';
+import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611160946';
+import { Audio2 } from './audio.js?v=202611160946';
+import { Platform } from './platform.js?v=202611160946';
+import { t } from './i18n.js?v=202611160946';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -104,7 +104,7 @@ export class UI {
           <h1 class="title"><span class="t1">${T('Siege')}</span><span class="t2">${T('of Eternity')}</span></h1>
           <p class="motto">${T('Hold the gate. The night does not end.')}</p>
           <button class="btn primary" data-act="play" data-focus>${icon('sword')}<span>${T('Defend the Castle')}</span></button>
-          <div class="best-line"><span>${T('Best wave {w}', { w: best.wave })}</span><span>${T('Best score')} ${best.score.toLocaleString()}</span></div>
+          <div class="best-line"><span>${T('Best wave {w}', { w: best.wave })}${this.game.save.flags.eternal ? ' · 👑 ' + T('Eternal') : ''}</span><span>${T('Best score')} ${best.score.toLocaleString()}</span></div>
         </div>
       </div>
       <nav class="plates">
@@ -165,6 +165,7 @@ export class UI {
       <label><span>${T('Music')}</span><input type="range" min="0" max="1" step="0.05" value="${st.music}" id="set-music"></label>
       <label><span>${T('Effects')}</span><input type="range" min="0" max="1" step="0.05" value="${st.sfx}" id="set-sfx"></label>
       <label><span>${T('Graphics')}</span><select id="set-q"><option value="auto">${T('Auto')}</option><option value="high">${T('High')}</option><option value="low">${T('Low (faster)')}</option></select></label>
+      <label><span>${T('Battery saver')}</span><select id="set-bat"><option value="auto">${T('Auto')}</option><option value="on">${T('On')}</option><option value="off">${T('Off')}</option></select></label>
       <label><span>${T('Screen shake')}</span><input type="checkbox" id="set-shake" ${st.shake ? 'checked' : ''}></label>
     </div>${ytNote}
     <div class="credits"><b>${T('Music')}</b>
@@ -174,9 +175,9 @@ export class UI {
       <b>${T('Art and sound')}</b>
       <p>Kenney (kenney.nl), Kay Lousberg (KayKit), Quaternius — CC0 / free licences</p>
     </div>`, 'settings');
-    $('#set-q').value = st.quality;
+    $('#set-q').value = st.quality; $('#set-bat').value = st.battery || 'auto';
     const apply = () => {
-      st.music = +$('#set-music').value; st.sfx = +$('#set-sfx').value; st.shake = $('#set-shake').checked;
+      st.music = +$('#set-music').value; st.sfx = +$('#set-sfx').value; st.shake = $('#set-shake').checked; st.battery = $('#set-bat').value;
       const q = $('#set-q').value; if (q !== st.quality) { st.quality = q; this.game.applyQuality(); }
       Audio2.setVolumes(st.music, st.sfx); this.game.save.write();
     };
@@ -253,6 +254,7 @@ export class UI {
     this.show(`<div class="over">
       <h1 class="red">${T('You have fallen')}</h1>
       <p class="sub">${info.newBest ? `<b class="gold">${T('New best!')}</b> ` : ''}${T('Wave {n}', { n: info.wave })} — ${T(info.sceneTitle)}</p>
+      ${info.quote ? `<p class="king-quote">“${T(info.quote)}”</p>` : ''}
       <div class="stats">
         <div><b>${info.score.toLocaleString()}</b><span>${T('Score')}</span></div>
         <div><b>${info.kills}</b><span>${T('Kills')}</span></div>
@@ -346,6 +348,31 @@ export class UI {
     clearTimeout(this._annT); this._annT = setTimeout(() => (this.annEl.innerHTML = ''), 2200);
   }
   streak(text) { const el = $('#streak'); el.textContent = t(text); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+  // boss speech, shown as subtitles one line after another
+  speech(lines) {
+    let el = document.getElementById('speech');
+    if (!el) { el = document.createElement('div'); el.id = 'speech'; document.body.appendChild(el); }
+    clearTimeout(this._spT); let i = 0;
+    const next = () => {
+      if (i >= lines.length) { el.classList.remove('on'); return; }
+      const l = lines[i++];
+      el.innerHTML = `${l.who ? `<b>${T(l.who)}</b>` : ''}<span>${T(l.text)}</span>`; el.classList.add('on');
+      this._spT = setTimeout(next, 1400 + l.text.length * 45);
+    };
+    next();
+  }
+  siegeEnded() {
+    clearTimeout(this._spT); document.getElementById('speech')?.classList.remove('on');
+    const el = document.createElement('div'); el.id = 'ended';
+    el.innerHTML = `<div><small>${T('Wave 100')}</small><h1>${T('SIEGE ENDED')}</h1><p>${T('The cycle is broken. You are Eternal.')}</p><span class="badge">👑 ${T('Eternal')}</span></div>`;
+    document.body.appendChild(el); setTimeout(() => el.classList.add('out'), 6500); setTimeout(() => el.remove(), 7600);
+  }
+  coach(msg, i, n) {
+    let el = document.getElementById('coach');
+    if (!el) { el = document.createElement('div'); el.id = 'coach'; document.getElementById('ui')?.appendChild(el) || document.body.appendChild(el); }
+    if (!msg) { el.classList.remove('on'); return; }
+    el.innerHTML = `<small>${i} / ${n}</small><span>${T(msg)}</span>`; el.classList.add('on');
+  }
   toast(msg, p) {
     const d = document.createElement('div'); d.className = 'toast'; d.textContent = t(msg, p); this.toasts.appendChild(d);
     setTimeout(() => d.remove(), 3500);
