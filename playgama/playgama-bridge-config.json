@@ -1,0 +1,18 @@
+{
+    "advertisement": {
+        "interstitial": {
+            "placementFallback": "break",
+            "placements": [
+                { "id": "break" }
+            ]
+        },
+        "rewarded": {
+            "placementFallback": "revive",
+            "placements": [
+                { "id": "revive" },
+                { "id": "reroll" },
+                { "id": "double" }
+            ]
+        }
+    }
+}
