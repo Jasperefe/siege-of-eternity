@@ -110,12 +110,14 @@ P.gameplayStart = () => {
   if (P.name === 'poki') safe(() => window.PokiSDK.gameplayStart());
   if (P.cg) safe(() => P.cg.game.gameplayStart());
   if (P.ysdk) safe(() => P.ysdk.features.GameplayAPI?.start());
+  if (P.pg) safe(() => P.pg.platform.sendMessage('gameplay_started').catch(() => {}));
 };
 P.gameplayStop = () => {
   if (!P.inGameplay) return; P.inGameplay = false;
   if (P.name === 'poki') safe(() => window.PokiSDK.gameplayStop());
   if (P.cg) safe(() => P.cg.game.gameplayStop());
   if (P.ysdk) safe(() => P.ysdk.features.GameplayAPI?.stop());
+  if (P.pg) safe(() => P.pg.platform.sendMessage('gameplay_stopped').catch(() => {}));
 };
 P.happy = () => { if (P.cg) safe(() => P.cg.game.happytime()); };
 
@@ -253,6 +255,16 @@ P.writeSave = async function (str) {
     if (P.ysdk && P.yplayer) { await P.yplayer.setData({ save: str }, true); }
     localStorage.setItem(LS_KEY, str);
   } catch (e) { console.warn('write save', e); }
+};
+
+// ---- Sign-in (Playgama only; optional, never prompted automatically) ----
+P.canSignIn = () => !!(P.pg && safe(() => P.pg.player.isAuthorizationSupported, false) && !safe(() => P.pg.player.isAuthorized, false));
+P.signedInName = () => (P.pg && safe(() => P.pg.player.isAuthorized, false) ? (safe(() => P.pg.player.name, null) || '') : null);
+P.signIn = async function () {
+  if (!P.canSignIn()) return false;
+  try { await P.pg.player.authorize(); } catch (e) { console.warn('sign-in', e); return false; }
+  lastWritten = null; // Bridge now keeps the save in the player's cloud: read it again
+  return !!safe(() => P.pg.player.isAuthorized, false);
 };
 
 P.sendScore = (value) => {

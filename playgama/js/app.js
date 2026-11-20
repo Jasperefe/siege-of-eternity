@@ -1,9 +1,9 @@
 // Everything after the platform SDK is ready: loading screen -> assets -> menu
-import { Platform } from './platform.js?v=202611200217';
-import { Save } from './save.js?v=202611200217';
-import { Game } from './game.js?v=202611200217';
-import { setLang, t } from './i18n.js?v=202611200217';
-import { Audio2 } from './audio.js?v=202611200217';
+import { Platform } from './platform.js?v=202611200408';
+import { Save } from './save.js?v=202611200408';
+import { Game } from './game.js?v=202611200408';
+import { setLang, t } from './i18n.js?v=202611200408';
+import { Audio2 } from './audio.js?v=202611200408';
 
 export async function start() {
   const ui = { bar: document.getElementById('load-bar-fill'), text: document.getElementById('load-text') };

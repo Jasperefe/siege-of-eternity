@@ -1,22 +1,23 @@
 // Game orchestration: loop, camera, run flow, waves, platform hooks
+import { Tel } from './telemetry.js?v=202611200408';
 import * as THREE from 'three';
-import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611200217';
+import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611200408';
 if (window.SOE_DEV) window.__fb = { hitProp };
-import { Assets } from './assets.js?v=202611200217';
-import { Audio2 } from './audio.js?v=202611200217';
-import { Platform } from './platform.js?v=202611200217';
-import { Save } from './save.js?v=202611200217';
-import { FX } from './fx.js?v=202611200217';
-import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611200217';
-import { Hero, HEROES, heroAssets } from './hero.js?v=202611200217';
-import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611200217';
-import { Combat } from './combat.js?v=202611200217';
-import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611200217';
-import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611200217';
-import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611200217';
-import { Input } from './input.js?v=202611200217';
-import { t } from './i18n.js?v=202611200217';
-import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611200217';
+import { Assets } from './assets.js?v=202611200408';
+import { Audio2 } from './audio.js?v=202611200408';
+import { Platform } from './platform.js?v=202611200408';
+import { Save } from './save.js?v=202611200408';
+import { FX } from './fx.js?v=202611200408';
+import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611200408';
+import { Hero, HEROES, heroAssets } from './hero.js?v=202611200408';
+import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611200408';
+import { Combat } from './combat.js?v=202611200408';
+import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611200408';
+import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611200408';
+import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611200408';
+import { Input } from './input.js?v=202611200408';
+import { t } from './i18n.js?v=202611200408';
+import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611200408';
 
 const DEV = !!window.SOE_DEV;
 export const DEV_EVENT = DEV ? new URLSearchParams(location.search).get('event') : null; // test cheats (?god, ?wave=N, ?fast, ?overview) only in dev builds
@@ -48,6 +49,7 @@ export class Game {
     this.director = new Director(this);
     this.ui = new UI(this);
     this.applyQuality();
+    Tel.init(canvas);
     addEventListener('resize', () => this.resize()); this.resize();
     this.bindUI();
     // platform: ads and YouTube pause/resume
@@ -58,13 +60,18 @@ export class Game {
     Platform.onAdStart = () => { this.adPause = true; Audio2.setAdMute(true); this.ui.adOverlay(true); };
     Platform.onAdEnd = () => { this.adPause = false; Audio2.setAdMute(false); this.ui.adOverlay(false); this._last = performance.now(); };
     Platform.onPause((why) => {
+      // Mid-fight, always show the Paused screen so a platform pause never looks like a frozen game
+      if (this.state === 'play') this.togglePause(true);
       if (why === 'platform') { this.sysPause = true; Audio2.pauseAll(true); Save.now(); }
-      else { Audio2.pauseAll(true); if (this.state === 'play') this.togglePause(true); }
+      else Audio2.pauseAll(true);
     });
     Platform.onResume((why) => {
-      if (why === 'platform') { this.sysPause = false; this._last = performance.now(); if (!this._looping) this.loop(); }
+      if (why === 'platform') this.wake();
       if (!this.sysPause) Audio2.pauseAll(false);
     });
+    // Safety net: if the platform's "resume" never arrives, the player touching the visible game brings it back
+    const nudge = () => { if (Platform.name !== 'youtube' && this.sysPause && !document.hidden && !this.adPause) { this.wake(); Audio2.pauseAll(false); } };
+    ['pointerdown', 'keydown'].forEach((ev) => addEventListener(ev, nudge, true));
     if (Platform.name === 'poki') document.body.classList.add('poki');
     this._tick = (t) => this.loop(t);
     if (DEV && location.search.includes('fast')) this._maxDt = 0.2;
@@ -79,7 +86,7 @@ export class Game {
       { txt: touch ? 'Tap the shield just before a hit to parry' : 'Right-click or K just before a hit to parry', done: () => inp.blockPressed },
       { txt: touch ? 'Tap the wind button to dodge' : 'Press Space to dodge', done: () => inp.dodge },
     ];
-    if (c.i >= steps.length) { this.ui.coach(null); this.run.coach = null; return; }
+    if (c.i >= steps.length) { this.ui.coach(null); this.run.coach = null; Tel.ev('tutorial_completed'); return; }
     const st = steps[c.i];
     if (c.shown !== c.i) { c.shown = c.i; c.t = 0; c.n = 0; this.ui.coach(st.txt, c.i + 1, steps.length); }
     c.t += raw;
@@ -227,6 +234,17 @@ export class Game {
     ui.on('howto', () => ui.showHowTo());
     ui.on('back', () => ui.showMenu());
     ui.on('noop', () => {});
+    ui.on('signin', async () => {
+      ui.busy(true);
+      const ok = await Platform.signIn();
+      if (ok) {
+        await Save.load(); this.save = Save.data; // the account's save (Bridge moves guest progress into an empty account)
+        Audio2.setVolumes(this.save.settings.music, this.save.settings.sfx);
+        if (!this.save.heroes[this.selHero]) this.selHero = 'knight';
+        Save.now();
+        ui.busy(false); ui.showMenu(); ui.toast('Signed in. Your progress is saved to your account.');
+      } else { ui.busy(false); ui.showMenu(); ui.toast('Not signed in. You can keep playing as a guest.'); }
+    });
     ui.on('pickHero', async (k) => {
       this.selHero = k; this.save.lastHero = k; Save.write();
       ui.busy(true); await Promise.all([this.ensure(heroAssets(k)), Assets.kkAnims()]); ui.busy(false);
@@ -270,7 +288,7 @@ export class Game {
       const txt = `⚔️ Siege of Eternity — Daily Siege ${new Date().toISOString().slice(0, 10)}\nI survived to wave ${r.wave} with ${r.kills} kills and ${r.parries} perfect parries! Can you beat me?`;
       navigator.clipboard?.writeText(txt).then(() => this.ui.toast('Copied')).catch(() => this.ui.toast(txt));
     });
-    ui.on('endless', () => { this.run.endless = true; this.ui.hideScreens(); this.ui.toast('Endless Siege begins. How far can you go?'); this.offerCards(); });
+    ui.on('endless', () => { Tel.ev('endless_started'); this.run.endless = true; this.ui.hideScreens(); this.ui.toast('Endless Siege begins. How far can you go?'); this.offerCards(); });
     ui.on('victoryMenu', () => { this.run.victory = true; this.state = 'dying'; this.showGameOver(true); });
     ui.on('beginRun', () => { this.save.flags.tutorial = true; Save.write(); this.ui.hideScreens(); this.beginWave(1); });
     // settings "Back" while paused returns to the pause menu
@@ -338,6 +356,8 @@ export class Game {
     };
     if (this.save.upg.revival) this.run.mods.secondWind = 1;
     this.save.stats.runs++; this.lastResult = null; this.setDark(false);
+    this.run.t0 = performance.now();
+    Tel.ev('run_started', { hero: this.selHero, mode, daily: !!daily, run_number: Math.min(this.save.stats.runs, 50) });
     this.clearEnemies(); this.combat.clear(); this.fx.clear(); this.corpses = [];
     if (this.world.key !== 'courtyard') { this.ui.travel(SCENES.courtyard.title, 1); await this.world.build('courtyard'); }
     await this.ensure(heroAssets(this.selHero));
@@ -379,6 +399,7 @@ export class Game {
     this.state = 'play';
     this.input.enabled = true;
     Platform.gameplayStart();
+    Tel.msg('level_started', n);
     if (!this.director.boss) this.music('battle');
   }
 
@@ -386,6 +407,7 @@ export class Game {
     const run = this.run;
     if (run.wave >= 30) this.lateLoad();
     this.state = 'cleared';
+    Tel.msg('level_completed', run.wave);
     run.score += 100 * run.wave;
     this.ui.announce('WAVE CLEARED', 'gold', 1.6);
     if (run.wave === 2 && this.input.isTouch && !this.save.flags.gfxTip) { this.save.flags.gfxTip = true; Save.write(); setTimeout(() => this.ui.toast('Tip: if your phone gets warm, set Graphics to Low in ⚙️ Settings'), 1800); }
@@ -393,6 +415,7 @@ export class Game {
     this.slowmo(0.8, 0.4);
     this.hero.heal(this.hero.maxHp * (this.run.wave >= 40 ? 0.2 : this.run.wave >= 30 ? 0.27 : 0.35), false);
     if (run.storyDone && !run.endless) { // the King has fallen: the story ends here, then the player chooses
+      Tel.ev('story_completed', { hero: this.selHero, mode: run.mode });
       setTimeout(() => { if (this.state !== 'cleared') return; Platform.gameplayStop(); this.input.enabled = false; this.state = 'ending'; this.ui.showEnding(); }, 7800);
       return;
     }
@@ -460,6 +483,7 @@ export class Game {
     const run = this.run;
     if (!run) return;
     this.state = 'dying';
+    Tel.msg('level_failed', run.wave);
     this.slowmo(1.5, 0.25);
     Audio2.sting('bad');
     this.save.stats.deaths++;
@@ -478,9 +502,10 @@ export class Game {
       const before = Object.fromEntries(Object.keys(HEROES).map((k) => [k, this.heroUnlocked(k)]));
       const newBest = run.wave > s.best.wave || run.score > s.best.score;
       s.best.wave = Math.max(s.best.wave, run.wave); s.best.score = Math.max(s.best.score, run.score);
-      for (const k of Object.keys(HEROES)) if (!before[k] && this.heroUnlocked(k)) { s.heroes[k] = true; unlocks.push(t('New hero: {name}', { name: `${HEROES[k].icon} ${t(HEROES[k].name)}` })); }
+      for (const k of Object.keys(HEROES)) if (!before[k] && this.heroUnlocked(k)) { s.heroes[k] = true; Tel.ev('hero_unlocked', { hero_id: k }); unlocks.push(t('New hero: {name}', { name: `${HEROES[k].icon} ${t(HEROES[k].name)}` })); }
       if (run.daily) { if (s.daily.key !== this.dailyKey) s.daily = { key: this.dailyKey, best: 0 }; s.daily.best = Math.max(s.daily.best, run.wave); }
       Save.now();
+      Tel.ev('run_ended', { outcome: run.victory ? 'victory' : run.quit ? 'quit' : 'died', wave: run.wave, hero: this.selHero, mode: run.mode, daily: !!run.daily, kills: run.stats.kills, bosses: run.stats.bosses, revived: !!run.revived, duration_sec: Math.round((performance.now() - (run.t0 || performance.now())) / 1000) });
       Platform.sendScore(s.best.score);
       this.lastResult = { wave: run.wave, score: run.score, kills: run.stats.kills, parries: run.stats.parries, shards: run.paid, unlocks, newBest, sceneTitle: SCENES[this.world.key].title, daily: run.daily, victory: !!run.victory,
         quote: run.wave === 100 && this.director.bossEnemy && !this.director.bossEnemy.dead ? STORY.kingLose : null };
@@ -507,10 +532,11 @@ export class Game {
     this.state = 'play'; this.input.enabled = true;
     Platform.gameplayStart();
     this.ui.announce('RISE AGAIN, WARDEN', 'gold');
+    Tel.ev('revived', { wave: run.wave });
   }
 
   endRun(quit) {
-    if (quit && this.run && this.state !== 'dead') { this.hero.hp = 0; this.state = 'dying'; Platform.gameplayStop(); this.showGameOver(true); }
+    if (quit && this.run && this.state !== 'dead') { this.run.quit = true; this.hero.hp = 0; this.state = 'dying'; Platform.gameplayStop(); this.showGameOver(true); }
   }
 
   setDark(on) { Audio2.setDark(on); document.body.classList.toggle('dark-age', on); }
@@ -529,11 +555,18 @@ export class Game {
     if (Platform.pg) Platform.midgameAd();
   }
 
+  // Leave a platform pause: restart the loop (rendering stopped while sysPause was set)
+  wake() {
+    if (!this.sysPause) return;
+    this.sysPause = false; this._last = performance.now(); this.loop();
+  }
+
   togglePause(on, silent = false) {
     if (on && this.state === 'play') {
       this.state = 'paused'; Platform.gameplayStop(); Audio2.music?.pause();
       if (!silent) this.ui.showPause();
     } else if (!on && this.state === 'paused') {
+      if (this.sysPause) { this.wake(); Audio2.pauseAll(false); }
       this.state = 'play'; this.ui.hideScreens(); Audio2.music?.play().catch(() => {});
       this._last = performance.now();
       Platform.gameplayStart();
@@ -543,6 +576,7 @@ export class Game {
   onBossDefeated(e) {
     const run = this.run, s = this.save;
     run.stats.bosses++;
+    Tel.ev('boss_defeated', { boss_id: e.def.boss || 'boss', wave: run.wave });
     this.ui.bossDone();
     this.ui.announce('{name} DEFEATED', 'gold', 2.5, { name: t(e.def.name).split(',')[0].toUpperCase() });
     this.slowmo(2, 0.2); this.shake(1);
@@ -647,6 +681,7 @@ export class Game {
     const cap = busy ? 60 : 30;
     if (cap && now - (this._lastDraw || 0) < 1000 / cap - 3) return;
     this._lastDraw = now;
+    Tel.frame(now, this.state === 'play' && !this.sysPause && !this.adPause && !document.hidden);
     if (busy && this.state === 'play' && this.quality === 'high' && !this._slowHinted) { // the game is struggling: point players to the Graphics setting, once
       const ft = now - (this._pf || now); this._pf = now;
       this._fpsAvg = this._fpsAvg ? this._fpsAvg * 0.97 + ft * 0.03 : ft;

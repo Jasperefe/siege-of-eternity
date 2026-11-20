@@ -390,3 +390,7 @@ body.dark-age #darkveil { opacity: 1; }
 .tb.big .gi { width: 38px; height: 38px; }
 .hero-icon .gi, .up-icon .gi { stroke-width: 1.6; }
 .btn.brass .gi { color: #2a1c0a !important; }
+.btn.signin { margin-top: 12px; min-height: 40px; padding: 8px 14px; font-size: 14px; }
+.btn.signin .ic { width: 18px; height: 18px; }
+.signed-in { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.signed-in .ic { width: 16px; height: 16px; fill: none; stroke: var(--brass); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
