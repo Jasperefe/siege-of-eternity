@@ -274,7 +274,7 @@ body.dark-age #darkveil { opacity: 1; }
 #buttons { position: absolute; right: max(18px, var(--sar)); bottom: max(22px, var(--sab)); width: 220px; height: 210px; pointer-events: none; }
 .tb { position: absolute; pointer-events: auto; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(212, 165, 72, .45); background: rgba(28, 31, 37, .7); font-size: 26px; touch-action: none; }
 .tb.down { transform: scale(.9); background: rgba(110, 80, 30, .85); }
-#btn-attack { right: 0; bottom: 0; width: 96px; height: 96px; font-size: 40px; }
+#btn-attack { right: 0; bottom: 0; width: 104px; height: 104px; font-size: 42px; }
 #btn-block { right: 108px; bottom: 6px; } #btn-dodge { right: 20px; bottom: 110px; } #btn-wrath { right: 106px; bottom: 96px; opacity: .55; }
 #btn-wrath.ready { opacity: 1; box-shadow: 0 0 18px var(--ember); border-color: var(--ember); animation: pulse .5s infinite alternate; }
 
@@ -330,8 +330,9 @@ body.dark-age #darkveil { opacity: 1; }
   nav.plates .btn small { font-size: 11px; }
   .card { width: 160px; min-height: 200px; padding: 10px; gap: 5px; } .card-icon { font-size: 34px; } .card-name { font-size: 16px; } .card-desc { font-size: 12px; }
   .cards-wrap { gap: 8px; } .cards-wrap h2 { font-size: 22px; }
-  .over { gap: 8px; } .stats b { font-size: 20px; } .stats div { padding: 6px; }
-  .over h1 { font-size: 30px; }
+  .over { gap: 6px; } .stats { grid-template-columns: repeat(4, 1fr); gap: 6px; } .stats b { font-size: 19px; } .stats div { padding: 4px 6px; } .stats span { font-size: 11px; }
+  .over h1 { font-size: 26px; margin: 0; }
+  .over .btn { min-height: 40px; padding: 6px 14px; font-size: 16px; }
   #bossbar { bottom: max(10px, var(--sab)); width: min(460px, 50vw); }
 }
 /* very narrow phones: cards become compact rows so all three fit on screen */
@@ -379,3 +380,21 @@ body.dark-age #darkveil { opacity: 1; }
 .ending .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
 .set-note { margin: -4px 0 8px; font-size: 13px; opacity: .7; }
+
+/* Drawn icons that replace emoji (js/icons.js) */
+.gi { display: inline-block; width: 1.15em; height: 1.15em; vertical-align: -0.22em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; color: var(--brass); overflow: visible; }
+.gi .f { fill: currentColor; fill-opacity: .2; }
+.gi + .gi { margin-left: .08em; }
+.card-icon .gi, .deal-icon .gi { stroke-width: 1.5; filter: drop-shadow(0 0 10px currentColor) drop-shadow(0 4px 6px rgba(0, 0, 0, .7)); }
+.card-icon .gi .f, .deal-icon .gi .f { fill-opacity: .28; }
+.tb .gi { width: 30px; height: 30px; vertical-align: middle; stroke-width: 2; }
+.tb.big .gi { width: 38px; height: 38px; }
+.hero-icon .gi, .up-icon .gi { stroke-width: 1.6; }
+.btn.brass .gi { color: #2a1c0a !important; }
+.btn.signin { margin-top: 12px; min-height: 40px; padding: 8px 14px; font-size: 14px; }
+.btn.signin .ic { width: 18px; height: 18px; }
+.signed-in { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.signed-in .ic { width: 16px; height: 16px; fill: none; stroke: var(--brass); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+#wave-goal { margin-top: 2px; font-size: 12px; letter-spacing: .04em; color: var(--brass); opacity: .85; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+#wave-goal:empty { display: none; }

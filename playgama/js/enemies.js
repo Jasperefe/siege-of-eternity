@@ -1,8 +1,8 @@
 // Enemy roster, elite modifiers, AI and boss behaviours
 import * as THREE from 'three';
-import { Actor } from './actor.js?v=202611200408';
-import { Audio2 } from './audio.js?v=202611200408';
-import { angleDiff, clamp, dampAngle, frand } from './util.js?v=202611200408';
+import { Actor } from './actor.js?v=202611210855';
+import { Audio2 } from './audio.js?v=202611210855';
+import { angleDiff, clamp, dampAngle, frand } from './util.js?v=202611210855';
 
 const CH = 'chars/', W = 'weapons/', FB = 'fbx/';
 const QF = ['FistR'], KR = ['handslotr'], KL = ['handslotl'];
@@ -309,7 +309,7 @@ export class Enemy extends Actor {
     } else {
       this.state = 'spawning'; this.stateT = 0; this.spawnDur = 0.6;
       this.play(d.anims.idle); this.setOpacity(0.01);
-      this.game.fx.smoke({ x, y: 0.2, z }, 8, 0.05, 1.3);
+      this.game.fx.smoke({ x, y: 0.2, z }, 5, 0.22, 0.9); // a light puff, so the purple spark shows (was a dense black blob)
       this.game.fx.magic({ x, y: 1, z }, [0.6, 0.2, 0.9], 12, 3);
     }
   }

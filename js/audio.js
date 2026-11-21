@@ -1,5 +1,5 @@
 // Web Audio: sampled SFX + streamed music + a few synthesized sounds (growls, roars, magic, fire)
-import { Platform } from './platform.js?v=202611161622';
+import { Platform } from './platform.js?v=202611210908';
 
 const SFX_GROUPS = {
   swing: ['drawKnife1', 'drawKnife2', 'drawKnife3', 'cloth1', 'cloth2'],
@@ -17,6 +17,15 @@ const SFX_GROUPS = {
   click: ['metalClick', 'metalLatch'],
   thud: ['impactSoft_medium_0', 'impactSoft_medium_1', 'dropLeather'],
 };
+// Recorded creature voices (CC0 packs) used instead of the code-made sounds on platforms that require recorded audio (Playgama)
+const REC_GROUPS = {
+  growl: Array.from({ length: 13 }, (_, i) => 'rec_growl' + i),
+  roar: Array.from({ length: 6 }, (_, i) => 'rec_roar' + i),
+  screech: ['rec_screech0', 'rec_screech1', 'rec_screech2', 'rec_screech3'],
+  breath: ['rec_breath0'],
+};
+const REC = typeof window !== 'undefined' && (window.SOE_PLATFORM === 'playgama' || /[?&]rec\b/.test(location.search));
+if (REC) Object.assign(SFX_GROUPS, REC_GROUPS);
 
 class AudioSys {
   constructor() {
@@ -24,6 +33,7 @@ class AudioSys {
     this.vol = { music: 0.6, sfx: 0.9 };
     this.paused = false; this.adMuted = false;
     this._lastPlay = {};
+    this.rec = REC;
   }
   init() {
     if (this.ctx) return;
@@ -94,10 +104,32 @@ class AudioSys {
     src.connect(g); g.connect(this.sfxGain); src.start();
   }
 
-  // ---- Synthesized sounds ----
+  // ---- Recorded versions of the sounds below (every one is a sampled file, pitched/layered) ----
+  _rec(name, a) {
+    const c = (v) => Math.max(0.45, Math.min(1.8, v));
+    switch (name) {
+      case 'whoosh': return this.play('swing', { vol: a[0] * 1.3, rate: c(a[1] * 1.1), minGap: 0.02 });
+      case 'growl': return this.play('growl', { vol: Math.min(1, a[0] * 1.8), rate: c(a[1] * 1.05), minGap: 0.12 });
+      case 'roar': this.play('roar', { vol: Math.min(1, a[0] * 1.4), rate: 0.78, jitter: 0.05, minGap: 0.4 }); return this.play('hitFlesh', { vol: a[0] * 0.5, rate: 0.5, minGap: 0.4 });
+      case 'screech': return this.play('screech', { vol: Math.min(1, a[0] * 2.4), rate: 1.15, minGap: 0.15 });
+      case 'magic': this.play('glass', { vol: a[0] * 1.1, rate: c(a[1] * 1.6), minGap: 0.04 }); return this.play('parry', { vol: a[0] * 0.55, rate: c(a[1] * 1.9), minGap: 0.04 });
+      case 'boom': this.play('rock', { vol: Math.min(1, a[0] * 1.3), rate: 0.5, minGap: 0.05 }); return this.play('hitFlesh', { vol: a[0], rate: 0.45, minGap: 0.05 });
+      case 'fire': this.play('breath', { vol: Math.min(1, a[0] * 3), rate: 0.75, minGap: 0.1 }); return this.play('swing', { vol: a[0] * 0.6, rate: 0.55, minGap: 0.05 });
+      case 'sting': {
+        const t = a[0];
+        if (t === 'good') { this.play('parry', { vol: 0.45, rate: 1.5, jitter: 0, minGap: 0 }); return this.play('coins', { vol: 0.5, minGap: 0 }); }
+        if (t === 'boss') { this.play('roar', { vol: 0.85, rate: 0.6, jitter: 0, minGap: 0 }); return this.play('parry', { vol: 0.6, rate: 0.5, jitter: 0, minGap: 0 }); }
+        return this.play('parry', { vol: 0.55, rate: 0.62, jitter: 0, minGap: 0 });
+      }
+      case 'toll': this.play('parry', { vol: 1, rate: 0.42, jitter: 0, minGap: 0 }); this.play('rock', { vol: 0.7, rate: 0.5, minGap: 0 }); return;
+    }
+  }
+
+  // ---- Synthesized sounds (not used when this.rec) ----
   _noiseSrc() { const s = this.ctx.createBufferSource(); s.buffer = this.noise; s.loop = true; return s; }
   whoosh(vol = 0.5, pitch = 1) {
     if (!this.ctx || !this.enabled) return;
+    if (this.rec) return this._rec('whoosh', [vol, pitch]);
     const t = this.ctx.currentTime, n = this._noiseSrc();
     const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4;
     f.frequency.setValueAtTime(500 * pitch, t); f.frequency.exponentialRampToValueAtTime(2600 * pitch, t + 0.12);
@@ -108,6 +140,7 @@ class AudioSys {
   }
   growl(vol = 0.35, pitch = 1, dur = 0.7) {
     if (!this.ctx || !this.enabled) return;
+    if (this.rec) return this._rec('growl', [vol, pitch, dur]);
     const t = this.ctx.currentTime;
     const o = this.ctx.createOscillator(); o.type = 'sawtooth';
     o.frequency.setValueAtTime(95 * pitch, t); o.frequency.exponentialRampToValueAtTime(55 * pitch, t + dur);
@@ -122,9 +155,10 @@ class AudioSys {
     o.connect(f); n.connect(nf); nf.connect(ng); ng.connect(f); f.connect(g); g.connect(this.sfxGain);
     o.start(t); lfo.start(t); n.start(t, Math.random()); o.stop(t + dur); lfo.stop(t + dur); n.stop(t + dur);
   }
-  roar(vol = 0.6) { this.growl(vol, 0.55, 1.8); setTimeout(() => this.growl(vol * 0.7, 0.8, 1.2), 120); }
+  roar(vol = 0.6) { if (this.rec) return this._rec('roar', [vol]); this.growl(vol, 0.55, 1.8); setTimeout(() => this.growl(vol * 0.7, 0.8, 1.2), 120); }
   screech(vol = 0.25) {
     if (!this.ctx || !this.enabled) return;
+    if (this.rec) return this._rec('screech', [vol]);
     const t = this.ctx.currentTime, o = this.ctx.createOscillator(); o.type = 'square';
     o.frequency.setValueAtTime(1800, t); o.frequency.exponentialRampToValueAtTime(900, t + 0.25);
     const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 3;
@@ -133,6 +167,7 @@ class AudioSys {
   }
   magic(vol = 0.3, pitch = 1) {
     if (!this.ctx || !this.enabled) return;
+    if (this.rec) return this._rec('magic', [vol, pitch]);
     const t = this.ctx.currentTime;
     for (let i = 0; i < 3; i++) {
       const o = this.ctx.createOscillator(); o.type = 'sine';
@@ -143,6 +178,7 @@ class AudioSys {
   }
   boom(vol = 0.7, dur = 0.9) {
     if (!this.ctx || !this.enabled) return;
+    if (this.rec) return this._rec('boom', [vol, dur]);
     const t = this.ctx.currentTime, n = this._noiseSrc();
     const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(900, t); f.frequency.exponentialRampToValueAtTime(60, t + dur);
     const g = this.ctx.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -153,6 +189,7 @@ class AudioSys {
   }
   fire(vol = 0.35, dur = 0.8) {
     if (!this.ctx || !this.enabled) return;
+    if (this.rec) return this._rec('fire', [vol, dur]);
     const t = this.ctx.currentTime, n = this._noiseSrc();
     const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 900; f.Q.value = 0.7;
     const g = this.ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.1);
@@ -161,6 +198,7 @@ class AudioSys {
   }
   sting(type = 'good') {
     if (!this.ctx || !this.enabled) return;
+    if (this.rec) return this._rec('sting', [type]);
     const t = this.ctx.currentTime;
     const notes = type === 'good' ? [523, 659, 784, 1047] : type === 'boss' ? [110, 104, 98, 82] : [392, 330, 262];
     notes.forEach((fr, i) => {
@@ -185,9 +223,9 @@ class AudioSys {
       for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5); }
       conv.buffer = ir; const wet = c.createGain(); wet.gain.value = 0.45; conv.connect(wet); lp.connect(conv);
       const drone = c.createGain(); drone.gain.value = 0;
-      for (const [f, g] of [[55, 0.5], [55.6, 0.4], [82.4, 0.25], [110, 0.12]]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; const og = c.createGain(); og.gain.value = g; o.connect(og).connect(drone); o.start(); }
-      const wind = c.createBufferSource(); wind.buffer = this.noise; wind.loop = true; const wf = c.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 400; wf.Q.value = 0.7;
-      const wg = c.createGain(); wg.gain.value = 0.35; wind.connect(wf).connect(wg).connect(drone); wind.start();
+      if (!this.rec) for (const [f, g] of [[55, 0.5], [55.6, 0.4], [82.4, 0.25], [110, 0.12]]) { const o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; const og = c.createGain(); og.gain.value = g; o.connect(og).connect(drone); o.start(); }
+      if (!this.rec) { const wind = c.createBufferSource(); wind.buffer = this.noise; wind.loop = true; const wf = c.createBiquadFilter(); wf.type = 'bandpass'; wf.frequency.value = 400; wf.Q.value = 0.7;
+      const wg = c.createGain(); wg.gain.value = 0.35; wind.connect(wf).connect(wg).connect(drone); wind.start(); }
       const dlp = c.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 300; drone.connect(dlp).connect(this.musicGain);
       this._darkNodes = { lp, wet, drone };
     }
@@ -200,6 +238,7 @@ class AudioSys {
   // deep bell toll for the wave-50 arrival
   toll() {
     if (!this.ctx || !this.enabled) return;
+    if (this.rec) return this._rec('toll', []);
     const c = this.ctx, t = c.currentTime;
     for (const [f, g, d] of [[98, 0.5, 6], [196, 0.25, 4], [293.7, 0.12, 3], [415, 0.08, 2.5]]) {
       const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = f; const gn = c.createGain();

@@ -1,9 +1,9 @@
 // Playable heroes (KayKit Adventurers) — combo, parry, dodge, wrath
 import * as THREE from 'three';
-import { Actor } from './actor.js?v=202611161622';
-import { Assets } from './assets.js?v=202611161622';
-import { Audio2 } from './audio.js?v=202611161622';
-import { angleDiff, clamp, dampAngle } from './util.js?v=202611161622';
+import { Actor } from './actor.js?v=202611210908';
+import { Assets } from './assets.js?v=202611210908';
+import { Audio2 } from './audio.js?v=202611210908';
+import { angleDiff, clamp, dampAngle } from './util.js?v=202611210908';
 
 const CH = 'chars/', W = 'weapons/';
 export const HEROES = {
@@ -252,7 +252,8 @@ export class Hero extends Actor {
     const st = this.def.combo[this.comboIdx];
     this.state = 'attack'; this.stateT = 0; this.hitDone = 0; this.queued = false;
     const want = moving ? Math.atan2(mv.x, mv.z) : this.facing;
-    this.target = g.autoTarget(this.pos, want, st.proj ? 22 : 7.5);
+    const touch = g.input.isTouch && !moving; // phones: tapping attack always swings at someone nearby
+    this.target = g.autoTarget(this.pos, want, st.proj ? 22 : touch ? 9 : 7.5, touch);
     if (this.target) this.facing = this.angleTo(this.target); else this.facing = want;
     if (st.blink && this.target) { // shade: teleport behind target
       const a = this.target.facing; g.fx.smoke(this.pos, 6, 0.1);

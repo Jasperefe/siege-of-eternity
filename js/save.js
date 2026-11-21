@@ -1,4 +1,4 @@
-import { Platform } from './platform.js?v=202611161622';
+import { Platform } from './platform.js?v=202611210908';
 
 const DEFAULT = () => ({
   v: 1,
@@ -17,6 +17,7 @@ export const Save = {
   data: DEFAULT(),
   async load() {
     const raw = await Platform.loadSave();
+    this.data = DEFAULT();
     if (raw) {
       try {
         const d = JSON.parse(raw);

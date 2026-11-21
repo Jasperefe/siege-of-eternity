@@ -1,7 +1,7 @@
 // Playgama telemetry (Bridge analytics). Only active on Playgama; every call is wrapped so it can never break the game.
 // Waves go through Bridge's standard level messages (Bridge records them as analytics itself);
 // custom events cover what only the game knows. Names are fixed; changing values go in the data. No personal data.
-import { Platform } from './platform.js?v=202611200408';
+import { Platform } from './platform.js?v=202611210855';
 
 export const BUILD = 'pg-3';
 const TARGET_FPS = 60, WINDOW_MS = 30000;

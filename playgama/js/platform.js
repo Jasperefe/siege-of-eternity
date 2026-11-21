@@ -144,6 +144,13 @@ function pgAd(kind, placement) {
   });
 }
 
+// Never let an ad SDK that goes silent freeze the game: give up if the ad hasn't started after 20 s,
+// and in any case after 3 minutes (a started ad that never reports its end)
+function guard(res, isStarted, value) {
+  setTimeout(() => { if (!isStarted()) res(value); }, 20000);
+  setTimeout(() => res(value), 180000);
+}
+
 // Midgame / interstitial: only at natural breaks (between waves, before a retry). The platform decides if one shows.
 P.midgameAd = async function () {
   if (P._adActive || P.name === 'local') return;
@@ -159,6 +166,7 @@ P.midgameAd = async function () {
     } else if (P.cg) {
       await new Promise((res) => {
         try { P.cg.ad.requestAd('midgame', { adStarted: start, adFinished: () => res(), adError: () => res() }); } catch (e) { res(); }
+        guard(res, () => started, undefined);
       });
     } else if (P.name === 'youtube') {
       if (window.ytgame.ads && window.ytgame.ads.requestInterstitialAd) { await window.ytgame.ads.requestInterstitialAd().catch(() => {}); }
@@ -200,6 +208,7 @@ P.rewardedAd = async function (rewardId) {
     } else if (P.cg) {
       ok = await new Promise((res) => {
         try { P.cg.ad.requestAd('rewarded', { adStarted: start, adFinished: () => res(true), adError: () => res(false) }); } catch (e) { res(false); }
+        guard(res, () => started, false);
       });
     } else if (P.name === 'youtube') {
       start();

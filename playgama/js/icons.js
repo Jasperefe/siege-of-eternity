@@ -1,6 +1,6 @@
 // Drawn line icons that replace emoji in the interface (Playgama rule 4.3.2: no emoji in place of icons).
 // Same style as the menu icons in ui.js: 24x24, round stroke, tinted per meaning. Paths with class "f" get a soft fill.
-const S = (d, f = '') => (f ? `<path class="f" d="${f}"/>` : '') + d.split('|').map((p) => `<path d="${p}"/>`).join('');
+const S = (d, f = '') => (f ? f.split('|').map((p) => `<path class="f" d="${p}"/>`).join('') : '') + d.split('|').map((p) => `<path d="${p}"/>`).join('');
 
 const HEART = 'M12 20s-8-4.6-8-10.2A4.3 4.3 0 0 1 12 7.3a4.3 4.3 0 0 1 8 2.5C20 15.4 12 20 12 20Z';
 const SKULL = 'M12 3a7.5 7.5 0 0 0-7.5 7.5c0 2.6 1.3 4.5 3 5.6V19h9v-2.9c1.7-1.1 3-3 3-5.6A7.5 7.5 0 0 0 12 3Z';

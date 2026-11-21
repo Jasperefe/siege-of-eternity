@@ -1,11 +1,11 @@
 // DOM user interface: banner title screen, forged-iron buttons, HUD, cards, announcements, nameplates
 import * as THREE from 'three';
-import { HEROES, HERO_ORDER } from './hero.js?v=202611200408';
-import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611200408';
-import { Audio2 } from './audio.js?v=202611200408';
-import { Platform } from './platform.js?v=202611200408';
-import { Save } from './save.js?v=202611200408';
-import { t } from './i18n.js?v=202611200408';
+import { HEROES, HERO_ORDER } from './hero.js?v=202611210855';
+import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611210855';
+import { Audio2 } from './audio.js?v=202611210855';
+import { Platform } from './platform.js?v=202611210855';
+import { Save } from './save.js?v=202611210855';
+import { t } from './i18n.js?v=202611210855';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -87,6 +87,8 @@ export class UI {
   adOverlay(on) { $('#ad-overlay').classList.toggle('hidden', !on); }
 
   show(html, cls = '') {
+    // a first-run tip never sits on top of a menu or the game-over screen (it comes back when the fight resumes)
+    this.coach(null); if (this.game.run?.coach) this.game.run.coach.shown = null;
     this.screens.innerHTML = `<div class="screen ${cls}">${html}</div>`;
     this.screens.classList.add('on');
     const first = this.screens.querySelector('[data-focus]') || this.screens.querySelector('button:not([disabled])');
@@ -293,6 +295,9 @@ export class UI {
     $('#wave-n').textContent = run.wave;
     const rem = g.director.active ? g.director.remaining : 0;
     $('#wave-sub').textContent = g.director.boss ? t('BOSS') : t('{n} enemies', { n: rem });
+    // a goal from the first second: how far the next boss is (early waves only)
+    const toBoss = 10 - (run.wave % 10), goal = !g.director.boss && run.wave < 30 && !run.endless ? (toBoss === 1 ? t('Boss next wave') : t('Boss in {n} waves', { n: toBoss })) : '';
+    const wg = $('#wave-goal'); if (wg._t !== goal) { wg._t = goal; wg.textContent = goal; }
     $('#score').textContent = run.score.toLocaleString();
     const dd = $('#dodges'); const key = h.dodgeCharges + '/' + h.stats.dodges;
     if (dd._k !== key) { dd._k = key; dd.innerHTML = '<i class="on"></i>'.repeat(h.dodgeCharges) + '<i></i>'.repeat(Math.max(0, h.stats.dodges - h.dodgeCharges)); }

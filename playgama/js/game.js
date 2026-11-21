@@ -1,23 +1,23 @@
 // Game orchestration: loop, camera, run flow, waves, platform hooks
-import { Tel } from './telemetry.js?v=202611200408';
+import { Tel } from './telemetry.js?v=202611210855';
 import * as THREE from 'three';
-import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611200408';
+import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611210855';
 if (window.SOE_DEV) window.__fb = { hitProp };
-import { Assets } from './assets.js?v=202611200408';
-import { Audio2 } from './audio.js?v=202611200408';
-import { Platform } from './platform.js?v=202611200408';
-import { Save } from './save.js?v=202611200408';
-import { FX } from './fx.js?v=202611200408';
-import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611200408';
-import { Hero, HEROES, heroAssets } from './hero.js?v=202611200408';
-import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611200408';
-import { Combat } from './combat.js?v=202611200408';
-import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611200408';
-import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611200408';
-import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611200408';
-import { Input } from './input.js?v=202611200408';
-import { t } from './i18n.js?v=202611200408';
-import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611200408';
+import { Assets } from './assets.js?v=202611210855';
+import { Audio2 } from './audio.js?v=202611210855';
+import { Platform } from './platform.js?v=202611210855';
+import { Save } from './save.js?v=202611210855';
+import { FX } from './fx.js?v=202611210855';
+import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611210855';
+import { Hero, HEROES, heroAssets } from './hero.js?v=202611210855';
+import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611210855';
+import { Combat } from './combat.js?v=202611210855';
+import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611210855';
+import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611210855';
+import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611210855';
+import { Input } from './input.js?v=202611210855';
+import { t } from './i18n.js?v=202611210855';
+import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611210855';
 
 const DEV = !!window.SOE_DEV;
 export const DEV_EVENT = DEV ? new URLSearchParams(location.search).get('event') : null; // test cheats (?god, ?wave=N, ?fast, ?overview) only in dev builds
@@ -55,14 +55,14 @@ export class Game {
     // platform: ads and YouTube pause/resume
     // From the moment an ad is requested: spinner, input blocked (CrazyGames/Poki rules)
     Platform.onAdRequest = () => { this.ui.adWait(true); this._inputWas = this.input.enabled; this.input.enabled = false; };
-    Platform.onAdDone = () => { this.ui.adWait(false); this.input.keys?.clear?.(); this.input.enabled = this._inputWas ?? true; };
+    Platform.onAdDone = () => { this.ui.adWait(false); this.input.keys?.clear?.(); this.input.enabled = this._inputWas ?? true; this.releaseAdPause(); };
     // Mute and freeze only when the ad actually starts
     Platform.onAdStart = () => { this.adPause = true; Audio2.setAdMute(true); this.ui.adOverlay(true); };
-    Platform.onAdEnd = () => { this.adPause = false; Audio2.setAdMute(false); this.ui.adOverlay(false); this._last = performance.now(); };
+    Platform.onAdEnd = () => { this.adPause = false; Audio2.setAdMute(false); this.ui.adOverlay(false); this._last = performance.now(); this.releaseAdPause(); };
     Platform.onPause((why) => {
       // Mid-fight, always show the Paused screen so a platform pause never looks like a frozen game
       if (this.state === 'play') this.togglePause(true);
-      if (why === 'platform') { this.sysPause = true; Audio2.pauseAll(true); Save.now(); }
+      if (why === 'platform') { this.sysPause = true; this._adSysPause = this.adPause || Platform._adActive; Audio2.pauseAll(true); Save.now(); }
       else Audio2.pauseAll(true);
     });
     Platform.onResume((why) => {
@@ -87,6 +87,7 @@ export class Game {
       { txt: touch ? 'Tap the wind button to dodge' : 'Press Space to dodge', done: () => inp.dodge },
     ];
     if (c.i >= steps.length) { this.ui.coach(null); this.run.coach = null; Tel.ev('tutorial_completed'); return; }
+    if (c.i >= 2 && this.run.wave < 2) { if (c.shown !== -1) { c.shown = -1; this.ui.coach(null); } return; } // parry/dodge tips come in wave 2
     const st = steps[c.i];
     if (c.shown !== c.i) { c.shown = c.i; c.t = 0; c.n = 0; this.ui.coach(st.txt, c.i + 1, steps.length); }
     c.t += raw;
@@ -335,7 +336,7 @@ export class Game {
     const lateDmg = casual ? 1 : 1 + late * 0.012 + loop2 * 0.012;
     const p50 = casual || n < 50 ? 1 : 1.5 + Math.min(0.5, (n - 50) / 60) + Math.max(0, n - 80) * 0.01;
     return {
-      hp: base * lateHp * p50 * (this.run?.enemyHp || 1) * (casual ? 0.7 : 1),
+      hp: base * lateHp * p50 * (this.run?.enemyHp || 1) * (casual ? 0.7 : 1) * (n === 1 ? 0.8 : 1),
       dmg: (1 + 0.045 * k) * lateDmg * (p50 > 1 ? 1 + (p50 - 1) * 0.6 : 1) * (this.run?.enemyDmg || 1) * (casual ? 0.6 : 0.85),
       speed: Math.min(1.35, 1 + 0.01 * k),
       tier: tierForWave(n + m), p50,
@@ -370,7 +371,7 @@ export class Game {
     if (sw > 1) { await this.world.build(sceneForWave(sw)); this.hero.pos.set(0, 0, 2); this.save.flags.tutorial = true; }
     // first run: no rules screen, straight into the fight with short hints that follow what the player does
     if (!this.save.flags.tutorial) { this.save.flags.tutorial = true; Save.write(); this.run.coach = { i: 0, t: 0, n: 0 }; }
-    this.beginWave(sw);
+    await this.beginWave(sw);
   }
 
   async beginWave(n) {
@@ -398,8 +399,8 @@ export class Game {
     }
     this.state = 'play';
     this.input.enabled = true;
-    Platform.gameplayStart();
-    Tel.msg('level_started', n);
+    // a first-visit wave 1 begins behind the loading screen: its "gameplay started" waits until loading has finished
+    if (window.__ready) { Platform.gameplayStart(); Tel.msg('level_started', n); } else this._deferStart = n;
     if (!this.director.boss) this.music('battle');
   }
 
@@ -555,6 +556,14 @@ export class Game {
     if (Platform.pg) Platform.midgameAd();
   }
 
+  // A platform pause that came with an ad ends with the ad, even if the platform never sends "resume"
+  releaseAdPause() {
+    if (!this.sysPause || !this._adSysPause || document.hidden || Platform._adActive) return;
+    this._adSysPause = false; this.wake(); Audio2.pauseAll(false);
+  }
+
+  telLevel(n) { Tel.msg('level_started', n); }
+
   // Leave a platform pause: restart the loop (rendering stopped while sysPause was set)
   wake() {
     if (!this.sysPause) return;
@@ -618,6 +627,13 @@ export class Game {
   spawnFromGate(key, q) {
     const def = ALL_DEFS[key], w = this.world, hero = this.hero;
     const level = this.levelFor(this.run.wave);
+    if (this.run.wave === 1 && !q.thief) { // first wave: they burst out right around the hero, no long walk
+      for (let i = 0; i < 8; i++) {
+        const a = Math.random() * 6.28, d = frand(5, 7.5);
+        const x = hero.pos.x + Math.sin(a) * d, z = hero.pos.z + Math.cos(a) * d;
+        if (Math.hypot(x, z) < w.radius - 1.5) return this.spawnEnemy(key, { x, z, mode: 'portal', level });
+      }
+    }
     if (def.flying && Math.random() < 0.7) { const a = Math.random() * 6.28, d = frand(6, w.radius * 0.8); return this.spawnEnemy(key, { x: Math.sin(a) * d, z: Math.cos(a) * d, mode: 'sky', level }); }
     if (def.ground && Math.random() < 0.6) {
       for (let i = 0; i < 8; i++) {
@@ -641,14 +657,14 @@ export class Game {
     for (const e of this.enemies) { if (e.dead || e.state === 'spawning' || (exclude && exclude.has(e))) continue; const d = Math.hypot(e.pos.x - p.x, e.pos.z - p.z); if (d < bd) { bd = d; best = e; } }
     return best;
   }
-  autoTarget(p, yaw, maxD) {
+  autoTarget(p, yaw, maxD, any = false) {
     let best = null, bs = 1e9;
     for (const e of this.enemies) {
       if (e.dead || e.state === 'spawning' || e.phased) continue;
       const d = Math.hypot(e.pos.x - p.x, e.pos.z - p.z); if (d > maxD) continue;
       const ad = Math.abs(angleDiff(yaw, Math.atan2(e.pos.x - p.x, e.pos.z - p.z)));
-      if (ad > 1.7 && d > 2.6) continue;
-      const s = d + ad * 3 - (e.isBoss ? 2 : 0);
+      if (!any && ad > 1.7 && d > 2.6) continue;
+      const s = d + ad * (any ? 1 : 3) - (e.isBoss ? 2 : 0);
       if (s < bs) { bs = s; best = e; }
     }
     return best;
@@ -665,6 +681,7 @@ export class Game {
   streak(e) {
     const now = this.time;
     if (now - (this._lastKill || -9) < 2.5) this._streak++; else this._streak = 1;
+    if (this.run && !this.run.firstKill) { this.run.firstKill = true; this.slowmo(0.45, 0.3); this.shake(0.45); if (this._streak === 1) this.ui.streak(t('FIRST BLOOD')); }
     this._lastKill = now;
     const names = { 2: 'DOUBLE KILL', 3: 'TRIPLE KILL', 5: 'MASSACRE', 8: 'UNSTOPPABLE', 12: 'LEGENDARY', 20: 'ETERNAL' };
     if (names[this._streak]) { this.ui.streak(names[this._streak]); this.run.score += this._streak * 50; if (this._streak >= 5) Audio2.sting('good'); }

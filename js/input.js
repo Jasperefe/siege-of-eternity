@@ -83,7 +83,7 @@ export class Input {
       blockHeld: k.has('KeyK') || this.mouse.right || this.btn.block || k.has('KeyE'),
       dodge: e.has('Space') || e.has('ShiftLeft') || e.has('ShiftRight') || e.has('KeyL') || e.has('Btn_dodge'),
       wrath: e.has('KeyQ') || e.has('KeyR') || e.has('KeyF') || e.has('Btn_wrath'),
-      pause: e.has('Escape') || e.has('KeyP'),
+      pause: (e.has('Escape') && window.SOE_PLATFORM !== 'playgama') || e.has('KeyP'),
     };
     // holding attack keeps the combo going
     if (!out.attack && out.attackHeld) out.attackHold = true;

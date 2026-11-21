@@ -1,11 +1,11 @@
 // DOM user interface: banner title screen, forged-iron buttons, HUD, cards, announcements, nameplates
 import * as THREE from 'three';
-import { HEROES, HERO_ORDER } from './hero.js?v=202611161622';
-import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611161622';
-import { Audio2 } from './audio.js?v=202611161622';
-import { Platform } from './platform.js?v=202611161622';
-import { Save } from './save.js?v=202611161622';
-import { t } from './i18n.js?v=202611161622';
+import { HEROES, HERO_ORDER } from './hero.js?v=202611210908';
+import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611210908';
+import { Audio2 } from './audio.js?v=202611210908';
+import { Platform } from './platform.js?v=202611210908';
+import { Save } from './save.js?v=202611210908';
+import { t } from './i18n.js?v=202611210908';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -21,6 +21,7 @@ const IC = {
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>',
   scroll: '<path d="M6 4h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M5 6a2 2 0 1 1 4 0v2H5M9 9h7M9 13h7M9 17h4"/>',
   back: '<path d="M15 5 8 12l7 7"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/>',
   play: '<path d="M8 5v14l11-7L8 5Z"/>',
   film: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3V9Z"/>',
   dice: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1"/><circle cx="15" cy="15" r="1"/><circle cx="15" cy="9" r="1"/><circle cx="9" cy="15" r="1"/>',
@@ -86,6 +87,8 @@ export class UI {
   adOverlay(on) { $('#ad-overlay').classList.toggle('hidden', !on); }
 
   show(html, cls = '') {
+    // a first-run tip never sits on top of a menu or the game-over screen (it comes back when the fight resumes)
+    this.coach(null); if (this.game.run?.coach) this.game.run.coach.shown = null;
     this.screens.innerHTML = `<div class="screen ${cls}">${html}</div>`;
     this.screens.classList.add('on');
     const first = this.screens.querySelector('[data-focus]') || this.screens.querySelector('button:not([disabled])');
@@ -106,6 +109,8 @@ export class UI {
           <p class="motto">${T('Hold the gate. The night does not end.')}</p>
           <button class="btn primary" data-act="play" data-focus>${icon('sword')}<span>${T('Defend the Castle')}</span></button>
           <div class="best-line"><span>${T('Best wave {w}', { w: best.wave })}${this.game.save.flags.eternal ? ' · 👑 ' + T('Eternal') : ''}</span><span>${T('Best score')} ${best.score.toLocaleString()}</span></div>
+          ${Platform.canSignIn() ? `<button class="btn sm signin" data-act="signin">${icon('user')}<span>${T('Sign in to save your progress')}</span></button>`
+            : Platform.signedInName() !== null ? `<p class="signed-in">${icon('user')}<span>${Platform.signedInName() ? T('Signed in as {name}', { name: esc(Platform.signedInName()) }) : T('Signed in')}</span></p>` : ''}
         </div>
       </div>
       <nav class="plates">
@@ -290,6 +295,9 @@ export class UI {
     $('#wave-n').textContent = run.wave;
     const rem = g.director.active ? g.director.remaining : 0;
     $('#wave-sub').textContent = g.director.boss ? t('BOSS') : t('{n} enemies', { n: rem });
+    // a goal from the first second: how far the next boss is (early waves only)
+    const toBoss = 10 - (run.wave % 10), goal = !g.director.boss && run.wave < 30 && !run.endless ? (toBoss === 1 ? t('Boss next wave') : t('Boss in {n} waves', { n: toBoss })) : '';
+    const wg = $('#wave-goal'); if (wg._t !== goal) { wg._t = goal; wg.textContent = goal; }
     $('#score').textContent = run.score.toLocaleString();
     const dd = $('#dodges'); const key = h.dodgeCharges + '/' + h.stats.dodges;
     if (dd._k !== key) { dd._k = key; dd.innerHTML = '<i class="on"></i>'.repeat(h.dodgeCharges) + '<i></i>'.repeat(Math.max(0, h.stats.dodges - h.dodgeCharges)); }

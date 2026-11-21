@@ -274,7 +274,7 @@ body.dark-age #darkveil { opacity: 1; }
 #buttons { position: absolute; right: max(18px, var(--sar)); bottom: max(22px, var(--sab)); width: 220px; height: 210px; pointer-events: none; }
 .tb { position: absolute; pointer-events: auto; width: 64px; height: 64px; border-radius: 50%; border: 2px solid rgba(212, 165, 72, .45); background: rgba(28, 31, 37, .7); font-size: 26px; touch-action: none; }
 .tb.down { transform: scale(.9); background: rgba(110, 80, 30, .85); }
-#btn-attack { right: 0; bottom: 0; width: 96px; height: 96px; font-size: 40px; }
+#btn-attack { right: 0; bottom: 0; width: 104px; height: 104px; font-size: 42px; }
 #btn-block { right: 108px; bottom: 6px; } #btn-dodge { right: 20px; bottom: 110px; } #btn-wrath { right: 106px; bottom: 96px; opacity: .55; }
 #btn-wrath.ready { opacity: 1; box-shadow: 0 0 18px var(--ember); border-color: var(--ember); animation: pulse .5s infinite alternate; }
 
@@ -330,8 +330,9 @@ body.dark-age #darkveil { opacity: 1; }
   nav.plates .btn small { font-size: 11px; }
   .card { width: 160px; min-height: 200px; padding: 10px; gap: 5px; } .card-icon { font-size: 34px; } .card-name { font-size: 16px; } .card-desc { font-size: 12px; }
   .cards-wrap { gap: 8px; } .cards-wrap h2 { font-size: 22px; }
-  .over { gap: 8px; } .stats b { font-size: 20px; } .stats div { padding: 6px; }
-  .over h1 { font-size: 30px; }
+  .over { gap: 6px; } .stats { grid-template-columns: repeat(4, 1fr); gap: 6px; } .stats b { font-size: 19px; } .stats div { padding: 4px 6px; } .stats span { font-size: 11px; }
+  .over h1 { font-size: 26px; margin: 0; }
+  .over .btn { min-height: 40px; padding: 6px 14px; font-size: 16px; }
   #bossbar { bottom: max(10px, var(--sab)); width: min(460px, 50vw); }
 }
 /* very narrow phones: cards become compact rows so all three fit on screen */
@@ -394,3 +395,6 @@ body.dark-age #darkveil { opacity: 1; }
 .btn.signin .ic { width: 18px; height: 18px; }
 .signed-in { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 10px 0 0; font-size: 13px; color: var(--muted); }
 .signed-in .ic { width: 16px; height: 16px; fill: none; stroke: var(--brass); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+#wave-goal { margin-top: 2px; font-size: 12px; letter-spacing: .04em; color: var(--brass); opacity: .85; text-shadow: 0 1px 3px rgba(0,0,0,.9); }
+#wave-goal:empty { display: none; }

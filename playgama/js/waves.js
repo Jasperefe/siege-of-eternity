@@ -1,10 +1,10 @@
 // Wave director: budgets, difficulty curve, events, elites, hazards and boss AI
-import { ENEMIES, ASCENDED } from './enemies.js?v=202611200408';
-import { setupVex, setupKing, vexAI, kingAI, speak, STORY } from './finalbosses.js?v=202611200408';
-import { t } from './i18n.js?v=202611200408';
+import { ENEMIES, ASCENDED } from './enemies.js?v=202611210855';
+import { setupVex, setupKing, vexAI, kingAI, speak, STORY } from './finalbosses.js?v=202611210855';
+import { t } from './i18n.js?v=202611210855';
 const STORY_ON_SPAWN = { golden: STORY.golden, dragon: STORY.dragon, asc: STORY.warlord };
-import { Audio2 } from './audio.js?v=202611200408';
-import { angleDiff, clamp, frand } from './util.js?v=202611200408';
+import { Audio2 } from './audio.js?v=202611210855';
+import { angleDiff, clamp, frand } from './util.js?v=202611210855';
 
 export const EVENTS = {
   bloodmoon: { name: 'Blood Moon', icon: '🩸', desc: 'Enemies are faster and stronger — but drop double shards', min: 6 },
@@ -64,22 +64,26 @@ export class Director {
     }
     // budget: grows faster than linear — the siege gets brutal
     let budget = (5 + n * 2.1 + Math.pow(n, 1.4) * 0.45) * run.modeMul * (run.mode === 'casual' ? 0.75 : 1);
+    // the first minute: a short first wave so the first blessing card comes fast, then a gentle ramp
+    if (n === 1) budget = 4.6; else if (n === 2) budget *= 0.75; else if (n === 3) budget *= 0.85;
+    if (n === 1) this.spawnT = 0.35;
     if (this.event === 'bloodmoon') { level.dmg *= 1.25; level.speed *= 1.15; run.shardsWave = 2; } else run.shardsWave = 1;
     if (this.event === 'champion') { this.queue.push({ key: 'champion', delay: 0, champion: true }); budget *= 0.4; }
     if (this.event === 'necro') this.queue.push({ key: 'skel_mage', delay: 4, elite: true });
     if (this.event === 'hunt') for (let i = 0; i < 4 + Math.floor(n / 6); i++) this.queue.push({ key: 'hound', delay: 3 + i * 0.4, gate: 0 });
     if (this.event === 'swarm') for (let i = 0; i < 8 + Math.floor(n / 4); i++) this.queue.push({ key: 'bat', delay: 2 + i * 0.3 });
     if (this.event === 'goldrush') this.queue.push({ key: 'goblin', delay: 1.5, thief: true });
-    const avail = Object.entries(ENEMIES).filter(([, d]) => d.wave <= n);
+    // wave 1 is goblins only: quick, one-hit enemies for the first fight
+    const avail = Object.entries(ENEMIES).filter(([k, d]) => d.wave <= n && (n > 1 || k === 'goblin'));
     let eliteChance = clamp((n - 6) * 0.022, 0, 0.32) + clamp((n - 30) * 0.012, 0, 0.18) + run.eliteBonus;
     if (run.mode === 'casual') eliteChance *= 0.6;
-    let t = 0.5;
+    let t = n === 1 ? 0.1 : 0.5;
     while (budget > 0) {
       const [k, d] = rng.weighted(avail, ([, d]) => d.w * (n - d.wave < 4 ? 1.8 : 1) * (d.cost > budget + 1 ? 0.05 : 1));
       const group = d.group || 1;
       for (let i = 0; i < group; i++) this.queue.push({ key: k, delay: t + i * 0.2, elite: rng() < eliteChance && group === 1 });
       budget -= d.cost * group;
-      t += frand(0.4, 1.4) * Math.max(0.45, 1 - n * 0.02);
+      t += n === 1 ? frand(0.25, 0.6) : frand(0.4, 1.4) * Math.max(0.45, 1 - n * 0.02);
     }
     // the Ascended: 1-3 per wave from wave 50
     if (n >= 50 && run.mode !== 'casual') {

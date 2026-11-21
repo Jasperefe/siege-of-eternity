@@ -1,4 +1,4 @@
-// One adapter for Poki, CrazyGames, YouTube Playables, Playhop (Yandex Games) and plain web.
+// One adapter for Poki, CrazyGames, YouTube Playables, Playhop (Yandex Games), Playgama (Bridge SDK) and plain web.
 // The build script sets window.SOE_PLATFORM and injects the matching SDK <script> in index.html.
 // Every SDK call is wrapped so a failing or blocked SDK can never break the game (all platforms require this).
 
@@ -11,7 +11,7 @@ const P = {
   inGameplay: false,
   _adActive: false,
   _audioCbs: [], _pauseCbs: [], _resumeCbs: [],
-  cg: null, ysdk: null, yplayer: null,
+  cg: null, ysdk: null, yplayer: null, pg: null,
 };
 
 function safe(fn, fallback) { try { return fn(); } catch (e) { console.warn('[platform]', e); return fallback; } }
@@ -23,6 +23,7 @@ function detect() {
   if (want === 'crazygames' && window.CrazyGames && window.CrazyGames.SDK) return 'crazygames';
   if (want === 'poki' && typeof window.PokiSDK !== 'undefined') return 'poki';
   if (want === 'playhop' && typeof window.YaGames !== 'undefined') return 'playhop';
+  if (want === 'playgama' && typeof window.bridge !== 'undefined') return 'playgama';
   return 'local';
 }
 
@@ -65,6 +66,17 @@ P.init = async function () {
       safe(() => P.ysdk.on('game_api_resume', () => P._resumeCbs.forEach((cb) => cb('platform'))));
       try { P.yplayer = await P.ysdk.getPlayer(); } catch (e) { P.yplayer = null; } // guests are fine
     } catch (e) { console.warn('Yandex SDK init failed', e); P.name = 'local'; P.ysdk = null; }
+  } else if (P.name === 'playgama') {
+    // Bridge first, before any other SDK call; everything after this goes through it
+    try { await window.bridge.initialize(); P.pg = window.bridge; }
+    catch (e) { console.warn('Bridge init failed', e); P.pg = window.bridge; }
+    const b = P.pg, EV = b.EVENT_NAME || {};
+    safe(() => { P.lang = b.platform.language || 'en'; });
+    safe(() => { P.muted = b.platform.isAudioEnabled === false; });
+    safe(() => b.platform.on(EV.AUDIO_STATE_CHANGED, (on) => { P.muted = !on; P._audioCbs.forEach((cb) => cb(!!on)); }));
+    safe(() => b.platform.on(EV.PAUSE_STATE_CHANGED, (paused) => {
+      if (paused) P._pauseCbs.forEach((cb) => cb('platform')); else P._resumeCbs.forEach((cb) => cb('platform'));
+    }));
   }
   if (P.name === 'local' || P.name === 'poki' || P.name === 'crazygames') P.lang = (navigator.language || 'en');
   P.lang = String(P.lang || 'en').slice(0, 2).toLowerCase();
@@ -85,6 +97,7 @@ P.loadingStart = () => { if (P.cg) safe(() => P.cg.game.loadingStart()); };
 P.firstFrame = () => { if (P.name === 'youtube') safe(() => window.ytgame.game.firstFrameReady()); };
 // Loading finished and the main menu is interactive
 P.gameReady = () => {
+  if (P.pg) safe(() => P.pg.platform.sendMessage('game_ready'));
   if (P.name === 'poki') safe(() => window.PokiSDK.gameLoadingFinished());
   if (P.cg) safe(() => P.cg.game.loadingStop());
   if (P.name === 'youtube') safe(() => window.ytgame.game.gameReady());
@@ -97,12 +110,14 @@ P.gameplayStart = () => {
   if (P.name === 'poki') safe(() => window.PokiSDK.gameplayStart());
   if (P.cg) safe(() => P.cg.game.gameplayStart());
   if (P.ysdk) safe(() => P.ysdk.features.GameplayAPI?.start());
+  if (P.pg) safe(() => P.pg.platform.sendMessage('gameplay_started').catch(() => {}));
 };
 P.gameplayStop = () => {
   if (!P.inGameplay) return; P.inGameplay = false;
   if (P.name === 'poki') safe(() => window.PokiSDK.gameplayStop());
   if (P.cg) safe(() => P.cg.game.gameplayStop());
   if (P.ysdk) safe(() => P.ysdk.features.GameplayAPI?.stop());
+  if (P.pg) safe(() => P.pg.platform.sendMessage('gameplay_stopped').catch(() => {}));
 };
 P.happy = () => { if (P.cg) safe(() => P.cg.game.happytime()); };
 
@@ -112,11 +127,36 @@ P.happy = () => { if (P.cg) safe(() => P.cg.game.happytime()); };
 P.onAdRequest = () => {}; P.onAdDone = () => {};
 P.onAdStart = () => {}; P.onAdEnd = () => {};
 
+function pgAd(kind, placement) {
+  const b = P.pg, adv = b.advertisement, EV = b.EVENT_NAME;
+  const evName = kind === 'rewarded' ? EV.REWARDED_STATE_CHANGED : EV.INTERSTITIAL_STATE_CHANGED;
+  return new Promise((res) => {
+    let rewarded = false, done = false, started = false;
+    const finish = () => { if (done) return; done = true; safe(() => adv.off(evName, on)); clearTimeout(tm); res({ rewarded, started }); };
+    const on = (st) => {
+      if (st === 'opened' && !started) { started = true; P.onAdStart(); }
+      else if (st === 'rewarded') rewarded = true;
+      else if (st === 'closed' || st === 'failed') finish();
+    };
+    const tm = setTimeout(finish, 120000); // never hang the game
+    try { adv.on(evName, on); kind === 'rewarded' ? adv.showRewarded(placement) : adv.showInterstitial(placement); }
+    catch (e) { console.warn('bridge ad', e); finish(); }
+  });
+}
+
+// Never let an ad SDK that goes silent freeze the game: give up if the ad hasn't started after 20 s,
+// and in any case after 3 minutes (a started ad that never reports its end)
+function guard(res, isStarted, value) {
+  setTimeout(() => { if (!isStarted()) res(value); }, 20000);
+  setTimeout(() => res(value), 180000);
+}
+
 // Midgame / interstitial: only at natural breaks (between waves, before a retry). The platform decides if one shows.
 P.midgameAd = async function () {
   if (P._adActive || P.name === 'local') return;
   // the player just watched a rewarded ad: don't stack an interstitial right after it
-  if (Date.now() - (P._lastRewarded || 0) < 90000) return;
+  // (Playgama: Bridge alone decides ad timing, so no counters of our own there)
+  if (!P.pg && Date.now() - (P._lastRewarded || 0) < 90000) return;
   P._adActive = true; P.onAdRequest();
   let started = false;
   const start = () => { if (!started) { started = true; P.onAdStart(); } };
@@ -126,9 +166,13 @@ P.midgameAd = async function () {
     } else if (P.cg) {
       await new Promise((res) => {
         try { P.cg.ad.requestAd('midgame', { adStarted: start, adFinished: () => res(), adError: () => res() }); } catch (e) { res(); }
+        guard(res, () => started, undefined);
       });
     } else if (P.name === 'youtube') {
       if (window.ytgame.ads && window.ytgame.ads.requestInterstitialAd) { await window.ytgame.ads.requestInterstitialAd().catch(() => {}); }
+    } else if (P.pg) {
+      const r = await pgAd('interstitial', 'break');
+      if (r.started) started = true;
     } else if (P.ysdk) {
       await new Promise((res) => {
         try {
@@ -148,6 +192,7 @@ P.hasRewarded = () => {
   if (P.name === 'local') return !!window.SOE_DEV && location.search.includes('fakeads');
   if (P.cg && P.adblock) return false;
   if (P.name === 'youtube') return !!(window.ytgame.ads && window.ytgame.ads.requestRewardedAd);
+  if (P.pg) return !!safe(() => P.pg.advertisement.isRewardedSupported, false);
   return true;
 };
 
@@ -163,10 +208,15 @@ P.rewardedAd = async function (rewardId) {
     } else if (P.cg) {
       ok = await new Promise((res) => {
         try { P.cg.ad.requestAd('rewarded', { adStarted: start, adFinished: () => res(true), adError: () => res(false) }); } catch (e) { res(false); }
+        guard(res, () => started, false);
       });
     } else if (P.name === 'youtube') {
       start();
       ok = await window.ytgame.ads.requestRewardedAd(rewardId).catch(() => false);
+    } else if (P.pg) {
+      const r = await pgAd('rewarded', rewardId);
+      if (r.started) started = true;
+      ok = r.rewarded; // reward only in the 'rewarded' state
     } else if (P.ysdk) {
       ok = await new Promise((res) => {
         let rewarded = false;
@@ -192,9 +242,11 @@ P.placePill = (topPx) => { if (P.name === 'poki' && window.PokiSDK.movePill) saf
 // ---- Saves ----
 const LS_KEY = 'siege_of_eternity_save_v1';
 let ytLoaded = false;
+const PG_KEY = 'save'; let pgLoaded = false, lastWritten = null;
 P.loadSave = async function () {
   try {
     if (P.name === 'youtube') { const s = await window.ytgame.game.loadData(); ytLoaded = true; return s || null; }
+    if (P.pg) { const d = await P.pg.storage.get([PG_KEY]); pgLoaded = true; const v = d && d[0]; return v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v)); }
     if (P.cg && P.cg.data) return P.cg.data.getItem(LS_KEY);
     if (P.ysdk && P.yplayer) {
       const d = await P.yplayer.getData(['save']);
@@ -202,15 +254,26 @@ P.loadSave = async function () {
       try { return localStorage.getItem(LS_KEY); } catch (e) { return null; }
     }
     return localStorage.getItem(LS_KEY);
-  } catch (e) { console.warn('load save', e); if (P.name === 'youtube') ytLoaded = false; return null; }
+  } catch (e) { console.warn('load save', e); if (P.name === 'youtube') ytLoaded = false; if (P.pg) pgLoaded = true; return null; }
 };
 P.writeSave = async function (str) {
   try {
     if (P.name === 'youtube') { if (ytLoaded) await window.ytgame.game.saveData(str); return; }
+    if (P.pg) { if (!pgLoaded || str === lastWritten) return; lastWritten = str; await P.pg.storage.set([PG_KEY], [str]); return; }
     if (P.cg && P.cg.data) { P.cg.data.setItem(LS_KEY, str); return; }
     if (P.ysdk && P.yplayer) { await P.yplayer.setData({ save: str }, true); }
     localStorage.setItem(LS_KEY, str);
   } catch (e) { console.warn('write save', e); }
+};
+
+// ---- Sign-in (Playgama only; optional, never prompted automatically) ----
+P.canSignIn = () => !!(P.pg && safe(() => P.pg.player.isAuthorizationSupported, false) && !safe(() => P.pg.player.isAuthorized, false));
+P.signedInName = () => (P.pg && safe(() => P.pg.player.isAuthorized, false) ? (safe(() => P.pg.player.name, null) || '') : null);
+P.signIn = async function () {
+  if (!P.canSignIn()) return false;
+  try { await P.pg.player.authorize(); } catch (e) { console.warn('sign-in', e); return false; }
+  lastWritten = null; // Bridge now keeps the save in the player's cloud: read it again
+  return !!safe(() => P.pg.player.isAuthorized, false);
 };
 
 P.sendScore = (value) => {
