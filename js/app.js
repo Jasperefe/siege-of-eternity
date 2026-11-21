@@ -1,9 +1,9 @@
 // Everything after the platform SDK is ready: loading screen -> assets -> menu
-import { Platform } from './platform.js?v=202611210908';
-import { Save } from './save.js?v=202611210908';
-import { Game } from './game.js?v=202611210908';
-import { setLang, t } from './i18n.js?v=202611210908';
-import { Audio2 } from './audio.js?v=202611210908';
+import { Platform } from './platform.js?v=202611210925';
+import { Save } from './save.js?v=202611210925';
+import { Game } from './game.js?v=202611210925';
+import { setLang, t } from './i18n.js?v=202611210925';
+import { Audio2 } from './audio.js?v=202611210925';
 
 export async function start() {
   const ui = { bar: document.getElementById('load-bar-fill'), text: document.getElementById('load-text') };
@@ -34,6 +34,7 @@ export async function start() {
     try { await game.startRun(false); } catch (e) { console.error(e); game.ui.showMenu(); }
   } else game.ui.showMenu();
   game.ui.hideLoading();
+  addEventListener('pagehide', () => Save.now()); // closing or reloading the page keeps the latest progress and settings
   Platform.gameReady();
   window.__ready = true;
   if (game._deferStart && game.state === 'play') { Platform.gameplayStart(); game.telLevel?.(game._deferStart); }

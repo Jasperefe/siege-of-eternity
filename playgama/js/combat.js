@@ -1,9 +1,9 @@
 // Damage, projectiles, AoE, hazards and all the upgrade-card effects
 import * as THREE from 'three';
-import { hitProp, onCloneKilled } from './finalbosses.js?v=202611210855';
-import { Assets } from './assets.js?v=202611210855';
-import { Audio2 } from './audio.js?v=202611210855';
-import { angleDiff, frand } from './util.js?v=202611210855';
+import { hitProp, onCloneKilled } from './finalbosses.js?v=202611210925';
+import { Assets } from './assets.js?v=202611210925';
+import { Audio2 } from './audio.js?v=202611210925';
+import { angleDiff, frand } from './util.js?v=202611210925';
 
 const _v = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
@@ -565,5 +565,5 @@ export class Combat {
   }
 }
 
-import { ALL_DEFS } from './enemies.js?v=202611210855';
+import { ALL_DEFS } from './enemies.js?v=202611210925';
 const ALL_FLY = (k) => !!ALL_DEFS[k]?.flying;

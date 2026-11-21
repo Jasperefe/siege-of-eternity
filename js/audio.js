@@ -1,5 +1,5 @@
 // Web Audio: sampled SFX + streamed music + a few synthesized sounds (growls, roars, magic, fire)
-import { Platform } from './platform.js?v=202611210908';
+import { Platform } from './platform.js?v=202611210925';
 
 const SFX_GROUPS = {
   swing: ['drawKnife1', 'drawKnife2', 'drawKnife3', 'cloth1', 'cloth2'],
@@ -24,7 +24,7 @@ const REC_GROUPS = {
   screech: ['rec_screech0', 'rec_screech1', 'rec_screech2', 'rec_screech3'],
   breath: ['rec_breath0'],
 };
-const REC = typeof window !== 'undefined' && (window.SOE_PLATFORM === 'playgama' || /[?&]rec\b/.test(location.search));
+const REC = typeof window !== 'undefined'; // recorded creature/magic sounds on every platform (no sounds made in code)
 if (REC) Object.assign(SFX_GROUPS, REC_GROUPS);
 
 class AudioSys {

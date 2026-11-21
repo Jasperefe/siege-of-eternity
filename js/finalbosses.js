@@ -2,8 +2,8 @@
 // Both are scaled to the player's own build when they appear, so the fight is decided by skill:
 // Vex is tuned to be beaten by roughly one player in four, the King by about one in fifty.
 import * as THREE from 'three';
-import { Audio2 } from './audio.js?v=202611210908';
-import { angleDiff, frand } from './util.js?v=202611210908';
+import { Audio2 } from './audio.js?v=202611210925';
+import { angleDiff, frand } from './util.js?v=202611210925';
 
 const approach = (v, to, d) => (v < to ? Math.min(to, v + d) : Math.max(to, v - d));
 

@@ -1,10 +1,10 @@
 // Wave director: budgets, difficulty curve, events, elites, hazards and boss AI
-import { ENEMIES, ASCENDED } from './enemies.js?v=202611210855';
-import { setupVex, setupKing, vexAI, kingAI, speak, STORY } from './finalbosses.js?v=202611210855';
-import { t } from './i18n.js?v=202611210855';
+import { ENEMIES, ASCENDED } from './enemies.js?v=202611210925';
+import { setupVex, setupKing, vexAI, kingAI, speak, STORY } from './finalbosses.js?v=202611210925';
+import { t } from './i18n.js?v=202611210925';
 const STORY_ON_SPAWN = { golden: STORY.golden, dragon: STORY.dragon, asc: STORY.warlord };
-import { Audio2 } from './audio.js?v=202611210855';
-import { angleDiff, clamp, frand } from './util.js?v=202611210855';
+import { Audio2 } from './audio.js?v=202611210925';
+import { angleDiff, clamp, frand } from './util.js?v=202611210925';
 
 export const EVENTS = {
   bloodmoon: { name: 'Blood Moon', icon: '🩸', desc: 'Enemies are faster and stronger — but drop double shards', min: 6 },

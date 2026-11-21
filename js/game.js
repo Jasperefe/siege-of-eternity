@@ -1,23 +1,23 @@
 // Game orchestration: loop, camera, run flow, waves, platform hooks
-import { Tel } from './telemetry.js?v=202611210908';
+import { Tel } from './telemetry.js?v=202611210925';
 import * as THREE from 'three';
-import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611210908';
+import { STORY, onKingDefeated, removeEyes, hitProp } from './finalbosses.js?v=202611210925';
 if (window.SOE_DEV) window.__fb = { hitProp };
-import { Assets } from './assets.js?v=202611210908';
-import { Audio2 } from './audio.js?v=202611210908';
-import { Platform } from './platform.js?v=202611210908';
-import { Save } from './save.js?v=202611210908';
-import { FX } from './fx.js?v=202611210908';
-import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611210908';
-import { Hero, HEROES, heroAssets } from './hero.js?v=202611210908';
-import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611210908';
-import { Combat } from './combat.js?v=202611210908';
-import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611210908';
-import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611210908';
-import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611210908';
-import { Input } from './input.js?v=202611210908';
-import { t } from './i18n.js?v=202611210908';
-import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611210908';
+import { Assets } from './assets.js?v=202611210925';
+import { Audio2 } from './audio.js?v=202611210925';
+import { Platform } from './platform.js?v=202611210925';
+import { Save } from './save.js?v=202611210925';
+import { FX } from './fx.js?v=202611210925';
+import { World, SCENES, SCENE_ASSETS, HOLE } from './world.js?v=202611210925';
+import { Hero, HEROES, heroAssets } from './hero.js?v=202611210925';
+import { Enemy, ALL_DEFS, defAssets } from './enemies.js?v=202611210925';
+import { Combat } from './combat.js?v=202611210925';
+import { Director, sceneForWave, tierForWave, EVENTS, BOSS_EXTRA } from './waves.js?v=202611210925';
+import { rollCards, applyCard, DEALS, CARDS } from './cards.js?v=202611210925';
+import { UI, UPGRADES, upgradeCost } from './ui.js?v=202611210925';
+import { Input } from './input.js?v=202611210925';
+import { t } from './i18n.js?v=202611210925';
+import { makeRng, todaySeed, angleDiff, clamp, damp, frand } from './util.js?v=202611210925';
 
 const DEV = !!window.SOE_DEV;
 export const DEV_EVENT = DEV ? new URLSearchParams(location.search).get('event') : null; // test cheats (?god, ?wave=N, ?fast, ?overview) only in dev builds

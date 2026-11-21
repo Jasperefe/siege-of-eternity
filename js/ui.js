@@ -1,11 +1,11 @@
 // DOM user interface: banner title screen, forged-iron buttons, HUD, cards, announcements, nameplates
 import * as THREE from 'three';
-import { HEROES, HERO_ORDER } from './hero.js?v=202611210908';
-import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611210908';
-import { Audio2 } from './audio.js?v=202611210908';
-import { Platform } from './platform.js?v=202611210908';
-import { Save } from './save.js?v=202611210908';
-import { t } from './i18n.js?v=202611210908';
+import { HEROES, HERO_ORDER } from './hero.js?v=202611210925';
+import { CARDS, RARITY, SYNERGIES } from './cards.js?v=202611210925';
+import { Audio2 } from './audio.js?v=202611210925';
+import { Platform } from './platform.js?v=202611210925';
+import { Save } from './save.js?v=202611210925';
+import { t } from './i18n.js?v=202611210925';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -187,7 +187,10 @@ export class UI {
       const q = $('#set-q').value; if (q !== st.quality) { st.quality = q; this.game.applyQuality(); }
       Audio2.setVolumes(st.music, st.sfx); Save.write();
     };
-    this.screens.querySelectorAll('input,select').forEach((i) => i.addEventListener('input', apply));
+    this.screens.querySelectorAll('input,select').forEach((i) => {
+      i.addEventListener('input', apply); // live while dragging
+      i.addEventListener('change', () => { apply(); Save.now(); }); // saved at once when let go, so a quick reload keeps it
+    });
   }
 
   showHowTo(back = 'back') {

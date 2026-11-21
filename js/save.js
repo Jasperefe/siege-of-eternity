@@ -1,4 +1,4 @@
-import { Platform } from './platform.js?v=202611210908';
+import { Platform } from './platform.js?v=202611210925';
 
 const DEFAULT = () => ({
   v: 1,
